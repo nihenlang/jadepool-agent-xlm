@@ -1,0 +1,12 @@
+{
+  "defaultSeverity": "error",
+  "extends": [
+    "tslint-config-standard"
+  ],
+  "jsRules": {},
+  "rules": {
+    // allow paren-less arrow functions
+    "arrow-parens": false
+  },
+  "rulesDirectory": []
+}
