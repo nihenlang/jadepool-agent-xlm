@@ -20,7 +20,7 @@ declare class Logger {
    * @param err 错误对象
    * @param tags 各类日志标签
    */
-  error (message: string, err: Error, tags: string[]): void
+  error (message: string | null | undefined, err: Error | undefined, tags?: string[]): void
   // ------------------- Log型 ----------------------
   /**
    * 警报日志

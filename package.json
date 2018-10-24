@@ -6,14 +6,17 @@
   },
   "dependencies": {
     "config": "^2.0.1",
+    "keccak": "^1.4.0",
     "lodash": "^4.17.11",
     "moment": "^2.22.2",
+    "secp256k1": "^3.5.2",
     "uuid": "^3.3.2",
     "ws": "^6.1.0"
   },
   "devDependencies": {
     "@types/config": "0.0.34",
     "@types/lodash": "^4.14.117",
+    "@types/secp256k1": "^3.5.0",
     "@types/uuid": "^3.4.4",
     "@types/ws": "^6.0.1",
     "supports-color": "^5.5.0",
