@@ -5,11 +5,14 @@ import config from 'config'
 import { EventEmitter } from 'events'
 import { IncomingMessage } from 'http'
 import core from './core'
+import BaseService from './base.service'
 import invokeMethod from '../methods'
 import Logger from '../utils/logger'
 import { ecc } from '../utils/crypto'
 
 const logger = Logger.of('Service', 'JsonRPC')
+
+type AcceptMethods = { acceptMethods?: string | string[] }
 
 type JSONRPCRequest = {
   jsonrpc: '2.0',
@@ -33,19 +36,19 @@ type JSONRPCResponse = {
  * 1.支持保持对多个地址服务调用jsonrpc
  * 2.支持将本地methods包装为jsonrpc服务，暴露给连接对象
  */
-class Service extends core.BaseService {
+class JSONRPCService extends BaseService {
   /**
    * 调用请求的Map
    */
-  private requests: Map<string, EventEmitter>
+  private readonly requests: Map<string, EventEmitter>
+  /**
+   * Websocket服务端
+   */
+  private readonly wss: WebSocket.Server
   /**
    * 可接受的方法调用
    */
   private acceptMethods: string[] = []
-  /**
-   * Websocket服务端
-   */
-  private wss: WebSocket.Server
   /**
    * 构造函数
    */
@@ -79,7 +82,7 @@ class Service extends core.BaseService {
   /**
    * 初始化
    */
-  async initialize (opts: { acceptMethods: string | string[] | undefined }) {
+  async initialize (opts: AcceptMethods) {
     // 定义acceptMethods
     let methods: string[] = []
     if (opts.acceptMethods) {
@@ -209,4 +212,4 @@ class Service extends core.BaseService {
   }
 }
 
-module.exports = Service
+export = JSONRPCService
