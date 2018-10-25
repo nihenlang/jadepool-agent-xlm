@@ -1,5 +1,8 @@
 {
-  "port": 7890,
+  "ws": {
+    "host": "0.0.0.0",
+    "port": 7897
+  },
   "authorization": {
     "jadepool": {
       "pub": "BAC49vQD/HTjm2V70QnuUA6S4KvSuGjgOuRAkR/4OHiV0GSHZX0W7zbC4F8KfbV2ZKt2lG5ntdGRtCq/iMY0Sq8="

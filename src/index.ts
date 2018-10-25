@@ -8,7 +8,7 @@ const logger = Logger.of('App-Stellar')
 async function main () {
   const acceptJson = require('./acceptInterface.json')
   services.register(JSONRPCService, {
-    acceptMethods: _.map(acceptJson, info => info.method.toString())
+    acceptMethods: _.map(acceptJson, info => _.kebabCase(info.method))
   })
 }
 

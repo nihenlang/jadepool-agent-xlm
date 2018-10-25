@@ -8,6 +8,41 @@ type SigObj = {s: string, r: string, v: number}
 
 export namespace ecc {
   /**
+   * 签名
+   * @param sig 签名对象
+   * @param privKey 私钥
+   */
+  export function sign (obj: any, privKey: Buffer): string {
+    if (!secp256k1.privateKeyVerify(privKey)) {
+      throw new Error(`wrong privkey`)
+    }
+    const builtMsg = _buildMsg(obj)
+    try {
+      // sha3 hash
+      const msgToSign: Buffer = createKeccakHash('keccak256').update(builtMsg).digest()
+      const sig = secp256k1.sign(msgToSign, privKey)
+      return sig.signature.toString(DEFAULT_ENCODE)
+    } catch (err) {
+      throw err
+    }
+  }
+
+  /**
+   * 返回发送给瑶池的签名对象
+   * @param obj 签名对象
+   */
+  export function signToJadepool (obj: any) {
+    const privKeyStr: string = config.get('authorization.keypair.pri') || ''
+    const signature = sign(obj, Buffer.from(privKeyStr, DEFAULT_ENCODE))
+    return Object.assign({
+      sig: {
+        appid: config.get('authorization.appid'),
+        signature
+      }
+    }, obj)
+  }
+
+  /**
    * @param obj 用于验签的消息对象
    * @param sig 签名对象
    * @param publicKey 公钥
@@ -27,7 +62,13 @@ export namespace ecc {
     // sha3 hash
     const msgToSign: Buffer = createKeccakHash('keccak256').update(builtMsg).digest()
     // 验证签名
-    return secp256k1.verify(msgToSign, sigBuffer, publicKey)
+    let isValid: boolean = false
+    try {
+      isValid = secp256k1.verify(msgToSign, sigBuffer, publicKey)
+    } catch (err) {
+      isValid = false
+    }
+    return isValid
   }
 
   /**
