@@ -24,10 +24,10 @@ export default async (methodName: string, args: object = {}, ws: WebSocket) => {
       throw new NBError(500, `failed to initialize ledger`)
     }
     const nodeData: any = _.find(cfgData.node, { name: Ledger.CHAIN_KEY })
-    ledger.chainConfig = {
+    ledger.updateChainConfig({
       chainIndex: cfgData.ChainIndex,
       endpoints: Ledger.IS_TESTNET ? nodeData.TestNet : nodeData.MainNet
-    }
+    })
   }
   // 进行函数调用
   try {

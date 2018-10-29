@@ -149,18 +149,6 @@
     }
   },
   {
-    "method": "getTransaction",
-    "params": [
-      {
-        "name": "txid",
-        "type": "string"
-      }
-    ],
-    "return": {
-      "type": "object"
-    }
-  },
-  {
     "method": "withdraw",
     "params": [
       {

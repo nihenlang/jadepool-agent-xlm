@@ -1,6 +1,10 @@
 import WebSocket from 'ws'
-import StellarSdk, { Account } from 'stellar-sdk'
+import moment from 'moment'
+import StellarSdk from 'stellar-sdk'
 import NBError from '../utils/NBError'
+import Logger from '../utils/logger'
+
+const logger = Logger.of('Ledger', 'Stellar')
 
 // Interface and Types
 type ChainConfig = {
@@ -64,9 +68,16 @@ interface IncomingRecord {
 interface TxResult {
   txid: string
   meta?: string
+  [key: string]: any
+  // block: number
+  // from: string
+  // from_seq: number
+  // fee: string,
 }
-interface OrderInfo extends TxResult {
+interface OrderInfo {
+  txid: string
   coinName: string
+  meta?: string
   block?: number
 }
 interface OrderState {
@@ -112,9 +123,12 @@ export default class Ledger {
   }
 
   // Members
-  private _sdk?: StellarSdk.Server
   private _chainConfig?: ChainConfig
   private _tokenConfig?: TokenConfig
+  private _sdk?: StellarSdk.Server
+  private _closeLedgerListener?: () => void
+  private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
+  private _latestLedgerNumber: number = -1
 
   // Constructor
   private constructor () {
@@ -128,23 +142,65 @@ export default class Ledger {
   /**
    * Accessors
    */
-  set chainConfig (val: ChainConfig) {
-    this._chainConfig = val
-    this._sdk = undefined
-  }
-  set tokenConfig (val: TokenConfig) { this._tokenConfig = val }
-
   get isInitialized () { return !!this._chainConfig }
   get sdk (): StellarSdk.Server {
     if (!this._sdk) {
-      this._sdk = new StellarSdk.Server(this.chainConfig.endpoints[0])
+      if (!this._chainConfig) {
+        throw new NBError(-1, `missing chain config. ledger isn't initialized`)
+      }
+      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0])
     }
     return this._sdk
   }
 
   /**
-   * Methods
+   * Private Methods
    */
+  private _handleIncomingLedger (ledgerRecord: StellarSdk.LedgerRecord): void {
+    if (ledgerRecord.sequence > this._latestLedgerNumber) {
+      this._latestLedgerNumber = ledgerRecord.sequence
+    }
+    this._ledgersCache.set(ledgerRecord.sequence, ledgerRecord)
+  }
+
+  private async _resolveAccountId (address: string) {
+    if (address.indexOf('*') > -1) {
+      const fedRecord = await StellarSdk.FederationServer.resolve(address)
+      return fedRecord.account_id
+    }
+    return address
+  }
+
+  private async _loadAccount (address: string) {
+    let accountId = await this._resolveAccountId(address)
+    return this.sdk.loadAccount(accountId)
+  }
+
+  /**
+   * 获取交易信息
+   * @param txid 交易哈希
+   */
+  private async _getTransaction (txid: string): Promise<any> {
+    return null
+  }
+
+  /**
+   * 发送交易
+   */
+  private async _sendTransaction () {
+    return null
+  }
+
+  /**
+   * Public Methods
+   */
+  updateChainConfig (chainCfg: ChainConfig) {
+    this._chainConfig = chainCfg
+    this._sdk = undefined
+  }
+  updateTokenConfig (val: TokenConfig) {
+    this._tokenConfig = val
+  }
   /**
    * 获取用户地址
    * @param privKey 私钥
@@ -197,7 +253,19 @@ export default class Ledger {
    * 获取最新区块高度
    */
   async getBlockNumber (): Promise<number> {
-    return 0
+    if (!this._closeLedgerListener) {
+      this._closeLedgerListener = this.sdk.ledgers().cursor('now').stream({
+        onmessage: this._handleIncomingLedger.bind(this),
+        onerror: err => {
+          logger.error(null, err, ['LedgerWatcher'])
+          if (this._closeLedgerListener) {
+            this._closeLedgerListener()
+            this._closeLedgerListener = undefined
+          }
+        }
+      })
+    }
+    return this._latestLedgerNumber
   }
 
   /**
@@ -206,23 +274,27 @@ export default class Ledger {
    * @param coinName 币种名称
    */
   async getBalance (address: string, coinName?: string): Promise<string> {
-    return ''
+    const account = await this._loadAccount(address)
+    const balanceObj = account.balances.find(item => item.asset_type === 'native')
+    if (balanceObj) {
+      return balanceObj.balance
+    }
+    return '-1'
   }
 
   /**
    * 获取区块信息
    * @param indexOrHash 区块高度
    */
-  async getBlock (index: number): Promise<any> {
-    return null
-  }
-
-  /**
-   * 获取交易信息
-   * @param txid 交易哈希
-   */
-  async getTransaction (txid: string): Promise<any> {
-    return null
+  async getBlock (index: number): Promise<StellarSdk.LedgerRecord | undefined> {
+    let ledgerRecord = this._ledgersCache.get(index)
+    if (!ledgerRecord) {
+      const result = await this.sdk.ledgers().cursor(index.toString()).limit(1).call()
+      if (result.records.length > 0) {
+        ledgerRecord = result.records[0]
+      }
+    }
+    return ledgerRecord
   }
 
   /**
@@ -249,11 +321,73 @@ export default class Ledger {
    * @param bn 可选参数，这些txns所在的区块号
    * @param hasScanTask 可选参数，是否为扫描任务
    */
-  async filterTransactions (txns: TxResult[] | string[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
-    return []
+  async filterTransactions (txns: TxResult[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
+    let incomingRecords: IncomingRecord[] = []
+    await Promise.all(txns.map(async txn => {
+      let effects: StellarSdk.CollectionPage<StellarSdk.EffectRecord> | undefined
+      try {
+        effects = await this.sdk.effects().forTransaction(txn.txid).call()
+      } catch (err) {
+        logger.tag('failed-to-load-effects').warn(`txid=${txn.txid}`)
+      }
+      if (!effects || effects.records.length === 0) return
+      // TODO
+    }))
+    return incomingRecords
   }
 
-  // ---------- Default Task 必选实现 ----------
+  /**
+   * 通用doScan中实现，获取区块中交易信息等，用于保存到系统Block
+   * @param index 高度或哈希
+   */
+  async getBlockResult (index: number): Promise<BlockResult | undefined> {
+    const ledgerRecord = await this.getBlock(index)
+    if (!ledgerRecord) return undefined
+
+    let results = await this.sdk.transactions().forLedger(index).call()
+    let txns: TxResult[] = []
+    while (results.records.length > 0) {
+      txns = txns.concat(results.records.map(record => {
+        return {
+          txid: record.hash,
+          // 额外参数
+          block: record.ledger,
+          from: record.source_account,
+          from_seq: record.source_account_sequence,
+          fee: record.fee_paid
+        }
+      }))
+      results = await results.next()
+    }
+    return {
+      hash: ledgerRecord.hash,
+      timestamp: moment.utc(ledgerRecord.closed_at).valueOf(),
+      txns
+    }
+  }
+  /**
+   * 通用doScan中实现，获取地址的交易历史
+   * @param address
+   */
+  async getTransactionHistory (address: string): Promise<TxResult[]> {
+    const accountId = await this._resolveAccountId(address)
+    let results = await this.sdk.transactions().forAccount(accountId).call()
+    let txns: TxResult[] = []
+    while (results.records.length > 0) {
+      txns = txns.concat(results.records.map(record => {
+        return {
+          txid: record.hash,
+          // 额外参数
+          block: record.ledger,
+          from: record.source_account,
+          from_seq: record.source_account_sequence,
+          fee: record.fee_paid
+        }
+      }))
+    }
+    return txns
+  }
+
   /**
    * 提现
    * @param coinName
@@ -278,19 +412,5 @@ export default class Ledger {
    */
   async sweepToCold (coinName: string, cap: string): Promise<SweepToColdResult | undefined> {
     return undefined
-  }
-  /**
-   * 通用doScan中实现，获取区块中交易信息等，用于保存到系统Block
-   * @param indexOrHash 高度或哈希
-   */
-  async getBlockResult (indexOrHash: number | string): Promise<BlockResult | undefined> {
-    return undefined
-  }
-  /**
-   * 通用doScan中实现，获取地址的交易历史
-   * @param address
-   */
-  async getTransactionHistory (address: string): Promise<TxResult[]> {
-    return []
   }
 }
