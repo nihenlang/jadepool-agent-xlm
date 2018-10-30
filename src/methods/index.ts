@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import _ from 'lodash'
 import Ledger from '../ledger'
-import { services } from '../services/core'
+import * as cfg from '../configLoader'
 import Logger from '../utils/logger'
 import NBError from '../utils/NBError'
 
@@ -15,19 +15,10 @@ import NBError from '../utils/NBError'
  * @param ws 调用该方法的socketClient
  */
 export default async (methodName: string, args: object = {}, ws: WebSocket) => {
-  const jsonRpcSrv = services.get('jsonrpc')
   // 准备LedgerClient
   const ledger = Ledger.getInstance(ws)
   if (!ledger.isInitialized) {
-    const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-chaincfg', { chain: Ledger.CHAIN_KEY })
-    if (!cfgData || !cfgData.node || cfgData.ChainIndex === undefined) {
-      throw new NBError(500, `failed to initialize ledger`)
-    }
-    const nodeData: any = _.find(cfgData.node, { name: Ledger.CHAIN_KEY })
-    ledger.updateChainConfig({
-      chainIndex: cfgData.ChainIndex,
-      endpoints: Ledger.IS_TESTNET ? nodeData.TestNet : nodeData.MainNet
-    })
+    ledger.updateChainConfig(await cfg.loadChainConfig(ws))
   }
   // 进行函数调用
   try {

@@ -1,33 +1,14 @@
 import WebSocket from 'ws'
 import moment from 'moment'
 import BigNumber from 'bignumber.js'
-import StellarSdk, { Memo } from 'stellar-sdk'
-import NBError from '../utils/NBError'
-import Logger from '../utils/logger'
+import StellarSdk from 'stellar-sdk'
+import * as cfg from './configLoader'
+import NBError from './utils/NBError'
+import Logger from './utils/logger'
 
 const logger = Logger.of('Ledger', 'Stellar')
 
 // Interface and Types
-type ChainConfig = {
-  chainIndex: number,
-  endpoints: string[]
-}
-type TokenConfig = {
-  coin: {
-    Rate: number,
-    FeeSelector: number,
-    FeeForWithdraw: number
-  },
-  jadepool: {
-    HotWallet: {
-      DerivativePath: string,
-      Address: string | ''
-    },
-    ColdWallet: {
-      Address: string | ''
-    }
-  }
-}
 /** TxData 对象 */
 type TxEffectData = {
   address: string,
@@ -110,17 +91,14 @@ interface SweepToColdResult extends TxResult {
   to?: string
   value?: string
 }
-// Methods
+// 常量
+const FEE_PER_STROOP = new BigNumber(0.00001).div(100).toString()
 
 // Export class
 export default class Ledger {
   /**
    * 静态方法
    */
-  static IS_TESTNET = process.env.NODE_ENV === 'production'
-  static CHAIN_KEY = 'Stellar'
-  static CORE_TYPE = 'XLM'
-  static FEE_PER_STROOP = new BigNumber(0.00001).div(100).toString()
   private static _instances: WeakMap<WebSocket, Ledger> = new WeakMap<WebSocket, Ledger>()
 
   static getInstance (ws: WebSocket): Ledger {
@@ -133,7 +111,7 @@ export default class Ledger {
   }
 
   // Members
-  private _chainConfig?: ChainConfig
+  private _chainConfig?: cfg.ChainConfig
   private _sdk?: StellarSdk.Server
   private _closeLedgerListener?: () => void
   private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
@@ -141,7 +119,7 @@ export default class Ledger {
 
   // Constructor
   private constructor () {
-    if (Ledger.IS_TESTNET) {
+    if (cfg.IS_TESTNET) {
       StellarSdk.Network.useTestNetwork()
     } else {
       StellarSdk.Network.usePublicNetwork()
@@ -165,7 +143,7 @@ export default class Ledger {
   /**
    * Private Methods
    */
-  private _ensureChainConfig (): ChainConfig {
+  private _ensureChainConfig (): cfg.ChainConfig {
     if (!this._chainConfig) {
       throw new NBError(-10, `missing chain config. ledger isn't initialized`)
     } else {
@@ -217,7 +195,7 @@ export default class Ledger {
         amount: output.value
       }))
     if (output.memo) {
-      builder.addMemo(Memo.text(output.memo))
+      builder.addMemo(StellarSdk.Memo.text(output.memo))
     }
     let txResult: WithdrawResult | SweepToColdResult | null = null
     try {
@@ -242,7 +220,7 @@ export default class Ledger {
   /**
    * Public Methods
    */
-  updateChainConfig (chainCfg: ChainConfig) {
+  updateChainConfig (chainCfg: cfg.ChainConfig) {
     this._chainConfig = chainCfg
     this._sdk = undefined
   }
@@ -347,7 +325,7 @@ export default class Ledger {
       const tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
       ret = { found: true, state: 'pending' }
       ret.block = tranx.ledger_attr
-      ret.fee = new BigNumber(tranx.fee_paid).times(Ledger.FEE_PER_STROOP).toString()
+      ret.fee = new BigNumber(tranx.fee_paid).times(FEE_PER_STROOP).toString()
     } catch (err) {
       logger.error(`failed to get tx`, err)
       ret = { found: false }
@@ -396,12 +374,12 @@ export default class Ledger {
       })
     }
     return {
-      type: Ledger.CORE_TYPE,
+      type: cfg.CORE_TYPE,
       hash: tranx.hash,
       blockNumber: tranx.ledger_attr,
       blockHash: tranx.ledger_attr.toString(),
       confirmations: bn ? bn - tranx.ledger_attr : 0,
-      fee: new BigNumber(tranx.fee_paid).times(Ledger.FEE_PER_STROOP).toString(),
+      fee: new BigNumber(tranx.fee_paid).times(FEE_PER_STROOP).toString(),
       from,
       to
     }
@@ -464,8 +442,8 @@ export default class Ledger {
             txid: txn.txid,
             meta: '',
             bn: txn.block,
-            coreType: Ledger.CORE_TYPE,
-            coinName: Ledger.CORE_TYPE,
+            coreType: cfg.CORE_TYPE,
+            coinName: cfg.CORE_TYPE,
             fromAddress: from,
             toAddress: toName,
             value: value,
