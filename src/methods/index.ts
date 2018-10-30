@@ -6,10 +6,6 @@ import Logger from '../utils/logger'
 import NBError from '../utils/NBError'
 
 /**
- * 可调用瑶池的RPC为
- * 'rpc-fetch-chaincfg',
- * 'rpc-fetch-coincfg',
- * 'rpc-fetch-privkey'
  * @param methodName 调用的方法名
  * @param args 参数名
  * @param ws 调用该方法的socketClient

@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import Ledger from '../ledger'
-import { services } from '../services/core'
+import * as cfg from '../configLoader'
 import NBError from '../utils/NBError'
 
 /**
@@ -10,15 +10,11 @@ export default async (args: { path: string, index?: number }, ws: WebSocket): Pr
   let privKey: Buffer | undefined
   let opts
   if (args.path !== '') {
-    const jsonRpcSrv = services.get('jsonrpc')
-    const privKeyStr = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-privkey', { path: args.path })
-    if (!privKeyStr) {
-      throw new NBError(-998, `failed to fetch privkey`)
-    }
+    const privKeyStr = await cfg.loadPrivKey(ws, args.path)
     privKey = Buffer.from(privKeyStr, 'hex')
   } else if (args.index !== undefined) {
-    // TODO 获取mainAddress
-    opts = { mainAddress: '', index: args.index }
+    const tokenCfg = await cfg.loadTokenConfig(ws)
+    opts = { mainAddress: tokenCfg.jadepool.hotAddress, index: args.index }
   } else {
     throw new NBError(-410, `missing parameter: index`)
   }
