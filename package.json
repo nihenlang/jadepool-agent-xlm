@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "@types/stellar-sdk": "^0.10.4",
+    "bignumber.js": "^7.2.1",
     "config": "^2.0.1",
     "keccak": "^1.4.0",
     "lodash": "^4.17.11",

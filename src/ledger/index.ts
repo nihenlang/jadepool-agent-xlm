@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import moment from 'moment'
-import StellarSdk from 'stellar-sdk'
+import BigNumber from 'bignumber.js'
+import StellarSdk, { Memo } from 'stellar-sdk'
 import NBError from '../utils/NBError'
 import Logger from '../utils/logger'
 
@@ -28,6 +29,13 @@ type TokenConfig = {
   }
 }
 /** TxData 对象 */
+type TxEffectData = {
+  address: string,
+  value: string,
+  txid?: string,
+  n?: number,
+  asset?: string
+}
 interface TxData {
   type: string
   hash: string
@@ -35,16 +43,17 @@ interface TxData {
   fee: string
   blockNumber: number
   confirmations: number
-  from: Array<{address: string, value: string, txid?: string, n?: number, asset?: string}>
-  to: Array<{address: string, value: string, txid?: string, n?: number, asset?: string}>
+  from: TxEffectData[]
+  to: TxEffectData[]
 }
 /**
  * 提现信息
  */
 interface OutInfo {
-  id: number
   to: string
   value: string
+  memo?: string
+  id?: number
 }
 /**
  * 充值对象
@@ -84,7 +93,7 @@ interface OrderState {
   found: boolean
   block?: number
   fee?: string
-  state?: string
+  state?: 'online' | 'pending' | 'failed'
   message?: string
 }
 interface BlockResult {
@@ -111,6 +120,7 @@ export default class Ledger {
   static IS_TESTNET = process.env.NODE_ENV === 'production'
   static CHAIN_KEY = 'Stellar'
   static CORE_TYPE = 'XLM'
+  static FEE_PER_STROOP = new BigNumber(0.00001).div(100).toString()
   private static _instances: WeakMap<WebSocket, Ledger> = new WeakMap<WebSocket, Ledger>()
 
   static getInstance (ws: WebSocket): Ledger {
@@ -124,7 +134,6 @@ export default class Ledger {
 
   // Members
   private _chainConfig?: ChainConfig
-  private _tokenConfig?: TokenConfig
   private _sdk?: StellarSdk.Server
   private _closeLedgerListener?: () => void
   private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
@@ -158,19 +167,9 @@ export default class Ledger {
    */
   private _ensureChainConfig (): ChainConfig {
     if (!this._chainConfig) {
-      throw new NBError(-1, `missing chain config. ledger isn't initialized`)
+      throw new NBError(-10, `missing chain config. ledger isn't initialized`)
     } else {
       return this._chainConfig
-    }
-  }
-  private _ensureTokenConfig (): TokenConfig {
-    if (!this._tokenConfig) {
-      throw new NBError(-2, `missing token config`)
-    }
-    if (!this._tokenConfig.jadepool.HotWallet.Address) {
-      throw new NBError(-3, `missing hot address`)
-    } else {
-      return this._tokenConfig
     }
   }
 
@@ -179,6 +178,18 @@ export default class Ledger {
       this._latestLedgerNumber = ledgerRecord.sequence
     }
     this._ledgersCache.set(ledgerRecord.sequence, ledgerRecord)
+  }
+
+  private _splitAddress (address: string) {
+    const accountReg = /^([^[]*)(\[(.*)\])?$/i
+    const regMat = address.replace(/\n/g, '').match(accountReg)
+    return regMat ? {
+      account: regMat[1],
+      memo: regMat[3] || ''
+    } : {
+      account: address,
+      memo: ''
+    }
   }
 
   private async _resolveAccountId (address: string) {
@@ -195,18 +206,37 @@ export default class Ledger {
   }
 
   /**
-   * 获取交易信息
-   * @param txid 交易哈希
-   */
-  private async _getTransaction (txid: string): Promise<any> {
-    return null
-  }
-
-  /**
    * 发送交易
    */
-  private async _sendTransaction () {
-    return null
+  private async _trySendTransaction (output: OutInfo, from: string, seq: string, privKey: Buffer): Promise<WithdrawResult | SweepToColdResult | null> {
+    const account = new StellarSdk.Account(from, seq)
+    const builder = new StellarSdk.TransactionBuilder(account)
+      .addOperation(StellarSdk.Operation.payment({
+        destination: output.to,
+        asset: StellarSdk.Asset.native(),
+        amount: output.value
+      }))
+    if (output.memo) {
+      builder.addMemo(Memo.text(output.memo))
+    }
+    let txResult: WithdrawResult | SweepToColdResult | null = null
+    try {
+      const transaction = builder.build()
+      transaction.sign(StellarSdk.Keypair.fromRawEd25519Seed(privKey))
+      const txid = transaction.hash().toString('hex')
+      logger.tag('Signed').log(`txid=${txid}`)
+      // 发送Transaction
+      const result = await this.sdk.submitTransaction(transaction)
+      // 导出txResult
+      txResult = {
+        txid: result.hash || txid,
+        meta: seq.toString(),
+        orderIds: output.id ? [output.id] : []
+      }
+    } catch (err) {
+      throw err
+    }
+    return txResult
   }
 
   /**
@@ -216,35 +246,32 @@ export default class Ledger {
     this._chainConfig = chainCfg
     this._sdk = undefined
   }
-  updateTokenConfig (val: TokenConfig) {
-    this._tokenConfig = val
-  }
   /**
    * 获取用户地址
    * @param privKey 私钥
    * @param index 用户index
    */
-  genAddress (privKey?: Buffer, index?: number): string {
+  genAddress (privKey?: Buffer, opts?: { mainAddress: string, index: number }): string {
     const chainCfg = this._ensureChainConfig()
-
-    let hotAddress: string
-    if (!privKey) {
-      const tokenCfg = this._ensureTokenConfig()
-      hotAddress = tokenCfg.jadepool.HotWallet.Address
-    } else {
+    let hotAddress: string | undefined
+    if (!privKey && opts) {
+      hotAddress = opts.mainAddress
+    } else if (privKey) {
       if (privKey.length !== 32) {
         throw new NBError(-999, `privKey length should be 32`)
       }
       const keypair = StellarSdk.Keypair.fromRawEd25519Seed(privKey)
       hotAddress = keypair.publicKey()
+    } else {
+      throw new NBError(-400, `missing parameter`)
     }
     // 若不存在index，则返回热主地址
-    if (index === undefined) {
+    if (opts === undefined) {
       return hotAddress
     } else {
       // 普通充值地址的创建
       const chainIndex = (chainCfg.chainIndex || 1) * 10000
-      return hotAddress + `[${chainIndex + index}]`
+      return hotAddress + `[${chainIndex + opts.index}]`
     }
   }
 
@@ -314,8 +341,18 @@ export default class Ledger {
    * @param info 订单情况
    * @param bn 当前区块号
    */
-  async getOrderState (info: OrderInfo, bn?: number): Promise<OrderState | undefined> {
-    return undefined
+  async getOrderState (info: OrderInfo, bn?: number): Promise<OrderState> {
+    let ret: OrderState
+    try {
+      const tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
+      ret = { found: true, state: 'pending' }
+      ret.block = tranx.ledger_attr
+      ret.fee = new BigNumber(tranx.fee_paid).times(Ledger.FEE_PER_STROOP).toString()
+    } catch (err) {
+      logger.error(`failed to get tx`, err)
+      ret = { found: false }
+    }
+    return ret
   }
 
   /**
@@ -324,19 +361,60 @@ export default class Ledger {
    * @param bn 当前区块号
    */
   async getTransactionState (info: OrderInfo, bn?: number): Promise<TxData | undefined> {
-    return undefined
+    let tranx: StellarSdk.TransactionRecord
+    try {
+      tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
+    } catch (err) {
+      return undefined
+    }
+    const effects = await tranx.effects()
+    let from: TxEffectData[] = []
+    let to: TxEffectData[] = []
+    if (effects && effects._embedded && effects._embedded.records) {
+      effects._embedded.records.forEach(effect => {
+        switch (effect.type) {
+          case 'account_created':
+            to.push({
+              address: effect.account,
+              value: effect.starting_balance
+            })
+            break
+          case 'account_debited':
+            if ((effect as any).asset_type !== 'native') return
+            from.push({
+              address: effect.account,
+              value: (effect as any).amount
+            })
+            break
+          case 'account_credited':
+            if ((effect as any).asset_type !== 'native') return
+            to.push({
+              address: effect.account,
+              value: (effect as any).amount
+            })
+        }
+      })
+    }
+    return {
+      type: Ledger.CORE_TYPE,
+      hash: tranx.hash,
+      blockNumber: tranx.ledger_attr,
+      blockHash: tranx.ledger_attr.toString(),
+      confirmations: bn ? bn - tranx.ledger_attr : 0,
+      fee: new BigNumber(tranx.fee_paid).times(Ledger.FEE_PER_STROOP).toString(),
+      from,
+      to
+    }
   }
 
   /**
    * 筛选出系统所需的订单
+   * @param hotAddress 热钱包地址
    * @param txns 从区块链获取的交易信息
    * @param bn 可选参数，这些txns所在的区块号
    * @param hasScanTask 可选参数，是否为扫描任务
    */
-  async filterTransactions (txns: TxResult[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
-    const tokenCfg = this._ensureTokenConfig()
-    const hotAddress = tokenCfg.jadepool.HotWallet.Address
-
+  async filterTransactions (hotAddress: string, txns: TxResult[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
     let incomingRecords: IncomingRecord[] = []
     await Promise.all(txns.map(async txn => {
       // 使用官方payments相关内容获
@@ -347,9 +425,10 @@ export default class Ledger {
         logger.tag('failed-to-load-payments').warn(`txid=${txn.txid}`)
       }
       // 找遍全部的records
+      let idx = 0
       while (payments && payments.records.length > 0) {
         // 扫描记录
-        payments.records.forEach((paymentRecord, i) => {
+        payments.records.forEach(paymentRecord => {
           let to = ''
           let value = ''
           let assetType = 'native'
@@ -379,17 +458,18 @@ export default class Ledger {
           if (to !== hotAddress) return
           // 过滤仅提取native币交易
           if (assetType !== 'native') return
+          const toName = txn.memo ? hotAddress + `[${txn.memo}]` : hotAddress
           // 组织Incoming对象
           incomingRecords.push({
             txid: txn.txid,
-            meta: txn.meta || '',
+            meta: '',
             bn: txn.block,
             coreType: Ledger.CORE_TYPE,
             coinName: Ledger.CORE_TYPE,
             fromAddress: from,
-            toAddress: to,
+            toAddress: toName,
             value: value,
-            n: i,
+            n: idx++,
             // state判定均为false
             isInternal: false,
             isSpecial: false,
@@ -413,12 +493,12 @@ export default class Ledger {
 
     let results = await this.sdk.transactions().forLedger(index).call()
     let txns: TxResult[] = []
-    while (results.records.length > 0) {
+    while (results && results.records.length > 0) {
       txns = txns.concat(results.records.map(record => {
         return {
           txid: record.hash,
-          meta: record.memo ? record.memo.toString() : '',
           // 额外参数
+          memo: record.memo ? record.memo.toString() : '',
           block: record.ledger,
           from: record.source_account,
           from_seq: record.source_account_sequence,
@@ -441,45 +521,68 @@ export default class Ledger {
     const accountId = await this._resolveAccountId(address)
     let results = await this.sdk.transactions().forAccount(accountId).call()
     let txns: TxResult[] = []
-    while (results.records.length > 0) {
+    while (results && results.records.length > 0) {
       txns = txns.concat(results.records.map(record => {
         return {
           txid: record.hash,
-          meta: record.memo ? record.memo.toString() : '',
           // 额外参数
+          memo: record.memo ? record.memo.toString() : '',
           block: record.ledger,
           from: record.source_account,
           from_seq: record.source_account_sequence,
           fee: record.fee_paid
         }
       }))
+      results = await results.next()
     }
     return txns
   }
 
   /**
    * 提现
-   * @param coinName
-   * @param outputs
    */
-  async withdraw (coinName: string, outputs: OutInfo[]): Promise<WithdrawResult[]> {
-    return []
-  }
-  /**
-   * 汇总
-   * @param coinName
-   * @param fromAddress
-   * @param cap 真实金额
-   */
-  async sweepToHot (coinName: string, fromAddress: string, cap: string): Promise<TxResult | undefined> {
-    return undefined
+  async withdraw (from: string, outputs: OutInfo[], privKey: Buffer): Promise<WithdrawResult[]> {
+    const fromAccount = await this._loadAccount(from)
+    const hotAddress = fromAccount.accountId()
+    const seqNumber = fromAccount.sequenceNumber()
+
+    let results: WithdrawResult[] = []
+    await Promise.all(outputs.map(async (output, idx) => {
+      try {
+        const toAccount = this._splitAddress(output.to)
+        output.to = toAccount.account
+        output.memo = toAccount.memo
+        let result = await this._trySendTransaction(output, hotAddress, seqNumber + idx, privKey)
+        if (result) {
+          results.push(result as WithdrawResult)
+          logger.tag('WITHDRAW', 'Sent').log(`txid=${result.txid},meta=${result.meta}`)
+        }
+      } catch (err) {
+        logger.tag('failed-to-trySendTransaction').warn(`id=${output.id},to=${output.to},value=${output.value}`, err)
+      }
+    }))
+    return results
   }
   /**
    * 热转冷
-   * @param coinName
+   * @param from
+   * @param to
    * @param cap 真实金额
    */
-  async sweepToCold (coinName: string, cap: string): Promise<SweepToColdResult | undefined> {
+  async sweepToCold (from: string, to: string, cap: string, privKey: Buffer): Promise<SweepToColdResult | undefined> {
+    const fromAccount = await this._loadAccount(from)
+    const hotAddress = fromAccount.accountId()
+    const seqNumber = fromAccount.sequenceNumber()
+    const output = { to, value: cap }
+    try {
+      const result = await this._trySendTransaction(output, hotAddress, seqNumber, privKey)
+      if (result) {
+        logger.tag('SWEEP', 'Sent').log(`txid=${result.txid},meta=${result.meta},cap=${cap}`)
+        return Object.assign(output, result)
+      }
+    } catch (err) {
+      logger.tag('failed-to-sweepToCold').warn(`to=${output.to},value=${output.value}`, err)
+    }
     return undefined
   }
 }
