@@ -20,10 +20,10 @@ type TokenConfig = {
   jadepool: {
     HotWallet: {
       DerivativePath: string,
-      Address?: string
+      Address: string | ''
     },
     ColdWallet: {
-      Address?: string
+      Address: string | ''
     }
   }
 }
@@ -156,6 +156,24 @@ export default class Ledger {
   /**
    * Private Methods
    */
+  private _ensureChainConfig (): ChainConfig {
+    if (!this._chainConfig) {
+      throw new NBError(-1, `missing chain config. ledger isn't initialized`)
+    } else {
+      return this._chainConfig
+    }
+  }
+  private _ensureTokenConfig (): TokenConfig {
+    if (!this._tokenConfig) {
+      throw new NBError(-2, `missing token config`)
+    }
+    if (!this._tokenConfig.jadepool.HotWallet.Address) {
+      throw new NBError(-3, `missing hot address`)
+    } else {
+      return this._tokenConfig
+    }
+  }
+
   private _handleIncomingLedger (ledgerRecord: StellarSdk.LedgerRecord): void {
     if (ledgerRecord.sequence > this._latestLedgerNumber) {
       this._latestLedgerNumber = ledgerRecord.sequence
@@ -207,18 +225,12 @@ export default class Ledger {
    * @param index 用户index
    */
   genAddress (privKey?: Buffer, index?: number): string {
-    if (!this._chainConfig) {
-      throw new NBError(-1, `missing chain config. ledger isn't initialized`)
-    }
+    const chainCfg = this._ensureChainConfig()
+
     let hotAddress: string
     if (!privKey) {
-      if (!this._tokenConfig) {
-        throw new NBError(-2, `missing token config`)
-      }
-      if (!this._tokenConfig.jadepool.HotWallet.Address) {
-        throw new NBError(-3, `missing hot address`)
-      }
-      hotAddress = this._tokenConfig.jadepool.HotWallet.Address
+      const tokenCfg = this._ensureTokenConfig()
+      hotAddress = tokenCfg.jadepool.HotWallet.Address
     } else {
       if (privKey.length !== 32) {
         throw new NBError(-999, `privKey length should be 32`)
@@ -231,7 +243,7 @@ export default class Ledger {
       return hotAddress
     } else {
       // 普通充值地址的创建
-      const chainIndex = (this._chainConfig.chainIndex || 1) * 10000
+      const chainIndex = (chainCfg.chainIndex || 1) * 10000
       return hotAddress + `[${chainIndex + index}]`
     }
   }
@@ -322,16 +334,71 @@ export default class Ledger {
    * @param hasScanTask 可选参数，是否为扫描任务
    */
   async filterTransactions (txns: TxResult[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
+    const tokenCfg = this._ensureTokenConfig()
+    const hotAddress = tokenCfg.jadepool.HotWallet.Address
+
     let incomingRecords: IncomingRecord[] = []
     await Promise.all(txns.map(async txn => {
-      let effects: StellarSdk.CollectionPage<StellarSdk.EffectRecord> | undefined
+      // 使用官方payments相关内容获
+      let payments: StellarSdk.CollectionPage<StellarSdk.OperationRecord> | undefined
       try {
-        effects = await this.sdk.effects().forTransaction(txn.txid).call()
+        payments = await this.sdk.payments().forTransaction(txn.txid).call()
       } catch (err) {
-        logger.tag('failed-to-load-effects').warn(`txid=${txn.txid}`)
+        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid}`)
       }
-      if (!effects || effects.records.length === 0) return
-      // TODO
+      // 找遍全部的records
+      while (payments && payments.records.length > 0) {
+        // 扫描记录
+        payments.records.forEach((paymentRecord, i) => {
+          let to = ''
+          let value = ''
+          let assetType = 'native'
+          let from = txn.from
+          switch (paymentRecord.type) {
+            case 'create_account':
+              from = paymentRecord.funder
+              to = paymentRecord.account
+              value = paymentRecord.starting_balance
+              break
+            case 'payment':
+              from = paymentRecord.from
+              to = paymentRecord.to
+              value = paymentRecord.amount
+              assetType = paymentRecord.asset_type
+              break
+            case 'path_payment':
+              from = paymentRecord.from
+              to = paymentRecord.to
+              value = paymentRecord.amount
+              assetType = paymentRecord.asset_type
+              break
+            default:
+              return
+          }
+          // 过滤仅提取瑶池相关交易
+          if (to !== hotAddress) return
+          // 过滤仅提取native币交易
+          if (assetType !== 'native') return
+          // 组织Incoming对象
+          incomingRecords.push({
+            txid: txn.txid,
+            meta: txn.meta || '',
+            bn: txn.block,
+            coreType: Ledger.CORE_TYPE,
+            coinName: Ledger.CORE_TYPE,
+            fromAddress: from,
+            toAddress: to,
+            value: value,
+            n: i,
+            // state判定均为false
+            isInternal: false,
+            isSpecial: false,
+            isUnexpected: false
+          })
+        }) // end foreach
+        // 查找剩余的payments
+        payments = await payments.next()
+      } // end while
     }))
     return incomingRecords
   }
@@ -350,6 +417,7 @@ export default class Ledger {
       txns = txns.concat(results.records.map(record => {
         return {
           txid: record.hash,
+          meta: record.memo ? record.memo.toString() : '',
           // 额外参数
           block: record.ledger,
           from: record.source_account,
@@ -377,6 +445,7 @@ export default class Ledger {
       txns = txns.concat(results.records.map(record => {
         return {
           txid: record.hash,
+          meta: record.memo ? record.memo.toString() : '',
           // 额外参数
           block: record.ledger,
           from: record.source_account,
