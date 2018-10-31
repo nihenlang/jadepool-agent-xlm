@@ -127,20 +127,6 @@ export default class Ledger {
   }
 
   /**
-   * Accessors
-   */
-  get isInitialized () { return !!this._chainConfig }
-  get sdk (): StellarSdk.Server {
-    if (!this._sdk) {
-      if (!this._chainConfig) {
-        throw new NBError(-1, `missing chain config. ledger isn't initialized`)
-      }
-      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0])
-    }
-    return this._sdk
-  }
-
-  /**
    * Private Methods
    */
   private _ensureChainConfig (): cfg.ChainConfig {
@@ -152,6 +138,7 @@ export default class Ledger {
   }
 
   private _handleIncomingLedger (ledgerRecord: StellarSdk.LedgerRecord): void {
+    logger.tag('NewRecord').log(`ledger=${ledgerRecord.sequence},hash=${ledgerRecord.hash}`)
     if (ledgerRecord.sequence > this._latestLedgerNumber) {
       this._latestLedgerNumber = ledgerRecord.sequence
     }
@@ -218,6 +205,21 @@ export default class Ledger {
   }
 
   /**
+   * Accessors
+   */
+  get isInitialized () { return !!this._chainConfig }
+  get sdk (): StellarSdk.Server {
+    if (!this._sdk) {
+      if (!this._chainConfig) {
+        throw new NBError(-1, `missing chain config. ledger isn't initialized`)
+      }
+      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0])
+    }
+    return this._sdk
+  }
+  get isConnected (): boolean { return this._latestLedgerNumber !== -1 && this._closeLedgerListener !== undefined }
+
+  /**
    * Public Methods
    */
   updateChainConfig (chainCfg: cfg.ChainConfig) {
@@ -241,7 +243,7 @@ export default class Ledger {
       const keypair = StellarSdk.Keypair.fromRawEd25519Seed(privKey)
       hotAddress = keypair.publicKey()
     } else {
-      throw new NBError(-400, `missing parameter`)
+      throw new NBError(-800, `missing parameter`)
     }
     // 若不存在index，则返回热主地址
     if (opts === undefined) {
@@ -274,7 +276,7 @@ export default class Ledger {
       this._closeLedgerListener = this.sdk.ledgers().cursor('now').stream({
         onmessage: this._handleIncomingLedger.bind(this),
         onerror: err => {
-          logger.error(null, err, ['LedgerWatcher'])
+          logger.warn(`info=stream disconnected at(${this._latestLedgerNumber}),err=${err.message || err.name}`)
           if (this._closeLedgerListener) {
             this._closeLedgerListener()
             this._closeLedgerListener = undefined

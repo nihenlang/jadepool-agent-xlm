@@ -132,7 +132,7 @@ class JSONRPCService extends BaseService {
       params: args,
       jsonrpc: '2.0'
     }
-    logger.tag(`Request:${methodName}`).log(`id=${reqData.id},params=${JSON.stringify(args)}`)
+    logger.tag(`Request:${methodName}`).log(`id=${reqData.id}`)
     const emitter = new EventEmitter()
     this.requests.set(reqData.id, emitter)
     // 发起并等待请求
@@ -184,7 +184,13 @@ class JSONRPCService extends BaseService {
         try {
           res.result = await invokeMethod(methodName, jsonRequest.params || {}, ws)
         } catch (err) {
-          res.error = { code: err.code, message: err.message }
+          let code = err.code
+          let message = err.message
+          if (err.response) {
+            code = 20000 + err.response.status
+            message = err.response.detail || err.mesage
+          }
+          res.error = { code, message }
         }
       }
       // 若为方法调用, 则需返回结果
@@ -196,7 +202,7 @@ class JSONRPCService extends BaseService {
           }
         })
       }
-      logger.tag(`Invoked:${methodName}`).log(JSON.stringify(res))
+      logger.tag(`Invoked:${methodName}`).log(`id=${jsonRequest.id}`)
       return
     }
     // 回调类型判断

@@ -5,7 +5,13 @@ import NBError from '../utils/NBError'
 
 export default async (args: { address: string, coinName: string }, ws: WebSocket) => {
   if (!args.address) {
-    throw new NBError(-800, `missing address`)
+    throw new NBError(-801, `missing address`)
   }
-  return Ledger.getInstance(ws).getBalance(args.address, args.coinName)
+  let balance: string
+  try {
+    balance = await Ledger.getInstance(ws).getBalance(args.address, args.coinName)
+  } catch (err) {
+    balance = '0'
+  }
+  return balance
 }

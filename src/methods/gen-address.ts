@@ -16,7 +16,7 @@ export default async (args: { path: string, index?: number }, ws: WebSocket): Pr
     const tokenCfg = await cfg.loadTokenConfig(ws)
     opts = { mainAddress: tokenCfg.jadepool.hotAddress, index: args.index }
   } else {
-    throw new NBError(-410, `missing parameter: index`)
+    throw new NBError(-805, `missing parameter: index`)
   }
   return Ledger.getInstance(ws).genAddress(privKey, opts)
 }
