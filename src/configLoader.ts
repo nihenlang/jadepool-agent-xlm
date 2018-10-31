@@ -38,21 +38,28 @@ export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
   }
 }
 
+let _tokenConfig: TokenConfig
 export async function loadTokenConfig (ws: WebSocket): Promise<TokenConfig> {
-  const jsonRpcSrv = services.get('jsonrpc')
-  const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-coincfg', { type: CORE_TYPE })
-  if (!cfgData) {
-    throw new NBError(500, `failed to load config`)
-  }
-  return {
-    jadepool: {
-      hotPath: _.get(cfgData, 'jadepool.HotWallet.DerivativePath'),
-      hotAddress: _.get(cfgData, 'jadepool.HotWallet.Address'),
-      coldAddress: _.get(cfgData, 'jadepool.ColdWallet.Address')
+  if (!_tokenConfig) {
+    const jsonRpcSrv = services.get('jsonrpc')
+    const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-coincfg', { type: CORE_TYPE })
+    if (!cfgData) {
+      throw new NBError(500, `failed to load config`)
+    }
+    _tokenConfig = {
+      jadepool: {
+        hotPath: _.get(cfgData, 'jadepool.HotWallet.DerivativePath'),
+        hotAddress: _.get(cfgData, 'jadepool.HotWallet.Address'),
+        coldAddress: _.get(cfgData, 'jadepool.ColdWallet.Address')
+      }
     }
   }
+  return _tokenConfig
 }
 
+/**
+ * 获取私钥
+ */
 export async function loadPrivKey (ws: WebSocket, path: string): Promise<string> {
   const jsonRpcSrv = services.get('jsonrpc')
   const privKeyStr = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-privkey', { path })

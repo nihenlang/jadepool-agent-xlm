@@ -1,5 +1,91 @@
 [
   {
+    "method": "ensureConnected",
+    "params": [],
+    "return": {
+      "type": "boolean"
+    }
+  },
+  {
+    "method": "initializePostHook",
+    "params": [],
+    "return": {
+      "type": "void"
+    }
+  },
+  {
+    "method": "createAddressPostHook",
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "address",
+        "type": "string"
+      }
+    ],
+    "return": {
+      "type": "void"
+    }
+  },
+  {
+    "method": "txAndSweepPreHook",
+    "params": [
+      {
+        "name": "taskRound",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "void"
+    }
+  },
+  {
+    "method": "txAndSweepPostHook",
+    "params": [
+      {
+        "name": "taskRound",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "void"
+    }
+  },
+  {
+    "method": "closerPreHook",
+    "params": [
+      {
+        "name": "rulerData",
+        "type": "object"
+      },
+      {
+        "name": "taskRound",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "void"
+    }
+  },
+  {
+    "method": "closerPostHook",
+    "params": [
+      {
+        "name": "rulerData",
+        "type": "object"
+      },
+      {
+        "name": "taskRound",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "object"
+    }
+  },
+  {
     "method": "genAddress",
     "params": [
       {
@@ -114,6 +200,37 @@
           }
         ]
       }
+    }
+  },
+  {
+    "method": "sweepToHot",
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "fromAddress",
+        "type": "string"
+      },
+      {
+        "name": "cap",
+        "type": "string"
+      }
+    ],
+    "return": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "txid",
+          "type": "string"
+        },
+        {
+          "name": "meta",
+          "type": "string",
+          "required": false
+        }
+      ]
     }
   },
   {

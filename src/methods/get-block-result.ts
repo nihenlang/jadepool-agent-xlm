@@ -1,9 +1,7 @@
 import WebSocket from 'ws'
+import Ledger from '../ledger'
+// import * as cfg from '../configLoader'
 
-/**
- * 全新地址创建
- */
-export default async (args: any, ws: WebSocket) => {
-  // TODO
-  return null
+export default async (args: { indexOrHash: number }, ws: WebSocket) => {
+  return Ledger.getInstance(ws).getBlockResult(args.indexOrHash)
 }
