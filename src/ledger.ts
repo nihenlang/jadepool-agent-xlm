@@ -104,21 +104,24 @@ export default class Ledger {
   static getInstance (ws: WebSocket): Ledger {
     let ledger = Ledger._instances.get(ws)
     if (!ledger) {
-      ledger = new Ledger()
+      ledger = new Ledger(ws)
       Ledger._instances.set(ws, ledger)
     }
     return ledger
   }
 
   // Members
+  private _ws: WebSocket
   private _chainConfig?: cfg.ChainConfig
+  private _tokenConfig?: cfg.TokenConfig
   private _sdk?: StellarSdk.Server
   private _closeLedgerListener?: () => void
   private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
   private _latestLedgerNumber: number = -1
 
   // Constructor
-  private constructor () {
+  private constructor (ws: WebSocket) {
+    this._ws = ws
     if (cfg.IS_TESTNET) {
       StellarSdk.Network.useTestNetwork()
     } else {
@@ -222,9 +225,18 @@ export default class Ledger {
   /**
    * Public Methods
    */
-  updateChainConfig (chainCfg: cfg.ChainConfig) {
-    this._chainConfig = chainCfg
-    this._sdk = undefined
+  async getChainConfig (): Promise<cfg.ChainConfig> {
+    if (!this._chainConfig) {
+      this._chainConfig = await cfg.loadChainConfig(this._ws)
+      this._sdk = undefined
+    }
+    return this._chainConfig
+  }
+  async getTokenConfig (): Promise<cfg.TokenConfig> {
+    if (!this._tokenConfig) {
+      this._tokenConfig = await cfg.loadTokenConfig(this._ws)
+    }
+    return this._tokenConfig
   }
   /**
    * 获取用户地址

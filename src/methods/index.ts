@@ -14,7 +14,7 @@ export default async (methodName: string, args: object = {}, ws: WebSocket) => {
   // 准备LedgerClient
   const ledger = Ledger.getInstance(ws)
   if (!ledger.isInitialized) {
-    ledger.updateChainConfig(await cfg.loadChainConfig(ws))
+    await ledger.getChainConfig()
   }
   // 进行函数调用
   try {

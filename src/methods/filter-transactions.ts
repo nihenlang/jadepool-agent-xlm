@@ -7,6 +7,7 @@ export default async (args: { txns: any[], bn?: number, hasScanTask?: boolean },
   if (!args.txns || !Array.isArray(args.txns)) {
     throw new NBError(-810, `missing txns`)
   }
-  const tokenCfg = await cfg.loadTokenConfig(ws)
-  return Ledger.getInstance(ws).filterTransactions(tokenCfg.jadepool.hotAddress, args.txns, args.bn, args.hasScanTask)
+  const ledger = Ledger.getInstance(ws)
+  const tokenCfg = await ledger.getTokenConfig()
+  return ledger.filterTransactions(tokenCfg.jadepool.hotAddress, args.txns, args.bn, args.hasScanTask)
 }

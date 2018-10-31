@@ -211,10 +211,10 @@ class JSONRPCService extends BaseService {
       // 判断是否为回调请求，若为回调请求则需返回结果到请求Promise
       const emiter = this.requests.get(jsonResponse.id)
       if (!emiter) {
-        logger.tag('Message').warn(`unknown id ${jsonResponse.id}`)
+        logger.tag('Result').warn(`unknown id ${jsonResponse.id}`)
         return
       }
-      logger.tag(`Message`).log(`id=${jsonResponse.id}` + (!jsonResponse.error ? '' : `,code=${jsonResponse.error.code},message=${jsonResponse.error.message}`))
+      logger.tag(`Result`).log(`id=${jsonResponse.id}` + (!jsonResponse.error ? '' : `,code=${jsonResponse.error.code},message=${jsonResponse.error.message}`))
       if (jsonResponse.result !== undefined) {
         emiter.emit('response', jsonResponse.result)
       } else if (jsonResponse.error !== undefined) {

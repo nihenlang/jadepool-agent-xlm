@@ -28,33 +28,30 @@ export type TokenConfig = {
 export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
   const jsonRpcSrv = services.get('jsonrpc')
   const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-chaincfg', { chain: CHAIN_KEY })
-  if (!cfgData || !cfgData.node || cfgData.ChainIndex === undefined) {
+  const chainIndex = _.get(cfgData, 'data.chainIndex')
+  if (!cfgData || !cfgData.node || !chainIndex) {
     throw new NBError(500, `failed to initialize ledger`)
   }
   const nodeData: any = _.find(cfgData.node, { name: CHAIN_KEY })
   return {
-    chainIndex: cfgData.ChainIndex,
-    endpoints: process.env.NODE_ENV === 'production' ? nodeData.TestNet : nodeData.MainNet
+    chainIndex,
+    endpoints: nodeData.net
   }
 }
 
-let _tokenConfig: TokenConfig
 export async function loadTokenConfig (ws: WebSocket): Promise<TokenConfig> {
-  if (!_tokenConfig) {
-    const jsonRpcSrv = services.get('jsonrpc')
-    const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-coincfg', { type: CORE_TYPE })
-    if (!cfgData) {
-      throw new NBError(500, `failed to load config`)
-    }
-    _tokenConfig = {
-      jadepool: {
-        hotPath: _.get(cfgData, 'jadepool.HotWallet.DerivativePath'),
-        hotAddress: _.get(cfgData, 'jadepool.HotWallet.Address'),
-        coldAddress: _.get(cfgData, 'jadepool.ColdWallet.Address')
-      }
+  const jsonRpcSrv = services.get('jsonrpc')
+  const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-coincfg', { type: CORE_TYPE })
+  if (!cfgData) {
+    throw new NBError(500, `failed to load config`)
+  }
+  return {
+    jadepool: {
+      hotPath: _.get(cfgData, 'jadepool.HotWallet.DerivativePath'),
+      hotAddress: _.get(cfgData, 'jadepool.HotWallet.Address'),
+      coldAddress: _.get(cfgData, 'jadepool.ColdWallet.Address')
     }
   }
-  return _tokenConfig
 }
 
 /**
