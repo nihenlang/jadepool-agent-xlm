@@ -5,9 +5,9 @@ import NBError from './utils/NBError'
 
 export const CHAIN_KEY = 'Stellar'
 export const CORE_TYPE = 'XLM'
-export const IS_TESTNET = process.env.NODE_ENV === 'production'
 
 export type ChainConfig = {
+  isTestNet: boolean,
   chainIndex: number,
   endpoints: string[]
 }
@@ -35,6 +35,7 @@ export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
   const nodeData: any = _.find(cfgData.node, { name: CHAIN_KEY })
   return {
     chainIndex,
+    isTestNet: cfgData.isTestNet,
     endpoints: nodeData.net
   }
 }

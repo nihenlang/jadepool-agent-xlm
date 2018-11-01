@@ -122,11 +122,6 @@ export default class Ledger {
   // Constructor
   private constructor (ws: WebSocket) {
     this._ws = ws
-    if (cfg.IS_TESTNET) {
-      StellarSdk.Network.useTestNetwork()
-    } else {
-      StellarSdk.Network.usePublicNetwork()
-    }
   }
 
   /**
@@ -194,10 +189,12 @@ export default class Ledger {
       const txid = transaction.hash().toString('hex')
       logger.tag('Signed').log(`txid=${txid}`)
       // 发送Transaction
-      const result = await this.sdk.submitTransaction(transaction)
+      this.sdk.submitTransaction(transaction).catch(err => {
+        logger.tag(`submitTransaction`).error(null, err)
+      })
       // 导出txResult
       txResult = {
-        txid: result.hash || txid,
+        txid: txid,
         meta: seq.toString(),
         orderIds: output.id ? [output.id] : []
       }
@@ -227,8 +224,13 @@ export default class Ledger {
    */
   async getChainConfig (): Promise<cfg.ChainConfig> {
     if (!this._chainConfig) {
-      this._chainConfig = await cfg.loadChainConfig(this._ws)
       this._sdk = undefined
+      this._chainConfig = await cfg.loadChainConfig(this._ws)
+      if (this._chainConfig.isTestNet) {
+        StellarSdk.Network.useTestNetwork()
+      } else {
+        StellarSdk.Network.usePublicNetwork()
+      }
     }
     return this._chainConfig
   }
@@ -272,8 +274,9 @@ export default class Ledger {
    * @param address
    */
   async validateAddress (address: string): Promise<boolean> {
+    const addrInfo = this._splitAddress(address)
     try {
-      const federationRecord = await StellarSdk.FederationServer.resolve(address)
+      const federationRecord = await StellarSdk.FederationServer.resolve(addrInfo.account)
       return federationRecord && federationRecord.account_id ? true : false
     } catch (err) {
       return false
@@ -536,23 +539,26 @@ export default class Ledger {
   async withdraw (from: string, outputs: OutInfo[], privKey: Buffer): Promise<WithdrawResult[]> {
     const fromAccount = await this._loadAccount(from)
     const hotAddress = fromAccount.accountId()
-    const seqNumber = fromAccount.sequenceNumber()
 
     let results: WithdrawResult[] = []
-    await Promise.all(outputs.map(async (output, idx) => {
+    for (let i = 0; i < outputs.length; i++) {
+      const output = outputs[i]
+      const thisSeqNumber = fromAccount.sequenceNumber()
+      const toAccount = this._splitAddress(output.to)
+      output.to = toAccount.account
+      output.memo = toAccount.memo
       try {
-        const toAccount = this._splitAddress(output.to)
-        output.to = toAccount.account
-        output.memo = toAccount.memo
-        let result = await this._trySendTransaction(output, hotAddress, seqNumber + idx, privKey)
+        logger.tag('WITHDRAW', 'Prepare').log(`from=${hotAddress},seq=${thisSeqNumber},to=${output.to},memo=${output.memo},value=${output.value}`)
+        let result = await this._trySendTransaction(output, hotAddress, thisSeqNumber, privKey)
         if (result) {
           results.push(result as WithdrawResult)
+          fromAccount.incrementSequenceNumber()
           logger.tag('WITHDRAW', 'Sent').log(`txid=${result.txid},meta=${result.meta}`)
         }
       } catch (err) {
-        logger.tag('failed-to-trySendTransaction').warn(`id=${output.id},to=${output.to},value=${output.value}`, err)
+        logger.tag('failed-to-trySendTransaction').error(`id=${output.id},to=${output.to},value=${output.value}`, err)
       }
-    }))
+    }
     return results
   }
   /**
@@ -565,6 +571,8 @@ export default class Ledger {
     const fromAccount = await this._loadAccount(from)
     const hotAddress = fromAccount.accountId()
     const seqNumber = fromAccount.sequenceNumber()
+    logger.log(`from=${hotAddress},seq=${seqNumber}`)
+
     const output = { to, value: cap }
     try {
       const result = await this._trySendTransaction(output, hotAddress, seqNumber, privKey)
@@ -573,7 +581,7 @@ export default class Ledger {
         return Object.assign(output, result)
       }
     } catch (err) {
-      logger.tag('failed-to-sweepToCold').warn(`to=${output.to},value=${output.value}`, err)
+      logger.tag('failed-to-sweepToCold').error(`to=${output.to},value=${output.value}`, err)
     }
     return undefined
   }
