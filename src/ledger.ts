@@ -491,7 +491,7 @@ export default class Ledger {
           txid: record.hash,
           // 额外参数
           memo: record.memo ? record.memo.toString() : '',
-          block: record.ledger,
+          block: index,
           from: record.source_account,
           from_seq: record.source_account_sequence,
           fee: record.fee_paid
@@ -519,7 +519,7 @@ export default class Ledger {
           txid: record.hash,
           // 额外参数
           memo: record.memo ? record.memo.toString() : '',
-          block: record.ledger,
+          block: record.ledger_attr,
           from: record.source_account,
           from_seq: record.source_account_sequence,
           fee: record.fee_paid
