@@ -213,7 +213,7 @@ export default class Ledger {
       if (!this._chainConfig) {
         throw new NBError(-1, `missing chain config. ledger isn't initialized`)
       }
-      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0])
+      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0], { allowHttp: true })
     }
     return this._sdk
   }
