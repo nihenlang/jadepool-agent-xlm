@@ -344,7 +344,7 @@ export default class Ledger {
       ret.block = tranx.ledger_attr
       ret.fee = new BigNumber(tranx.fee_paid).times(FEE_PER_STROOP).toString()
     } catch (err) {
-      logger.error(`failed to get tx`, err)
+      logger.tag('getOrderState').error(`failed to get tx(${info.txid})`, err)
       ret = { found: false }
     }
     return ret
@@ -360,6 +360,7 @@ export default class Ledger {
     try {
       tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
     } catch (err) {
+      logger.tag('getTransactionState').error(`failed to get tx(${info.txid})`, err)
       return undefined
     }
     const effects = await tranx.effects()

@@ -366,7 +366,7 @@
       {
         "name": "bn",
         "type": "number",
-        "require": false
+        "required": false
       }
     ],
     "return": {
@@ -378,19 +378,23 @@
         },
         {
           "name": "block",
-          "type": "number"
+          "type": "number",
+          "required": false
         },
         {
           "name": "fee",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "state",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "message",
-          "type": "string"
+          "type": "string",
+          "required": false
         }
       ]
     }
@@ -425,7 +429,7 @@
       {
         "name": "bn",
         "type": "number",
-        "require": false
+        "required": false
       }
     ],
     "return": {
@@ -437,23 +441,28 @@
         },
         {
           "name": "hash",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "blockHash",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "blockNumber",
-          "type": "number"
+          "type": "number",
+          "required": false
         },
         {
           "name": "fee",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "confirmations",
-          "type": "number"
+          "type": "number",
+          "required": false
         },
         {
           "name": "from",
@@ -559,7 +568,8 @@
           },
           {
             "name": "meta",
-            "type": "string"
+            "type": "string",
+            "required": false
           },
           {
             "name": "bn",
@@ -587,19 +597,23 @@
           },
           {
             "name": "n",
-            "type": "number"
+            "type": "number",
+            "required": false
           },
           {
             "name": "isUnexpected",
-            "type": "boolean"
+            "type": "boolean",
+            "required": false
           },
           {
             "name": "isSpecial",
-            "type": "boolean"
+            "type": "boolean",
+            "required": false
           },
           {
             "name": "isInternal",
-            "type": "boolean"
+            "type": "boolean",
+            "required": false
           }
         ]
       }
