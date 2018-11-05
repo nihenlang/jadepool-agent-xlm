@@ -363,11 +363,12 @@ export default class Ledger {
       logger.tag('getTransactionState').error(`failed to get tx(${info.txid})`, err)
       return undefined
     }
-    const effects = await tranx.effects()
+    const effects = (await tranx.effects()) || {}
     let from: TxEffectData[] = []
     let to: TxEffectData[] = []
-    if (effects && effects._embedded && effects._embedded.records) {
-      effects._embedded.records.forEach(effect => {
+    const records: StellarSdk.EffectRecord[] = (effects as any).records
+    if (records && records.length > 0) {
+      records.forEach(effect => {
         switch (effect.type) {
           case 'account_created':
             to.push({
