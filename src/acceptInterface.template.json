@@ -480,15 +480,18 @@
               },
               {
                 "name": "txid",
-                "type": "string"
+                "type": "string",
+                "required": false
               },
               {
                 "name": "n",
-                "type": "number"
+                "type": "number",
+                "required": false
               },
               {
                 "name": "asset",
-                "type": "string"
+                "type": "string",
+                "required": false
               }
             ]
           }
@@ -509,15 +512,18 @@
               },
               {
                 "name": "txid",
-                "type": "string"
+                "type": "string",
+                "required": false
               },
               {
                 "name": "n",
-                "type": "number"
+                "type": "number",
+                "required": false
               },
               {
                 "name": "asset",
-                "type": "string"
+                "type": "string",
+                "required": false
               }
             ]
           }
