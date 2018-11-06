@@ -354,6 +354,9 @@ export default class Ledger {
    * @param bn 当前区块号
    */
   async getTransactionState (info: OrderInfo, bn?: number): Promise<TxData | undefined> {
+    if (!info || !info.txid) {
+      throw new NBError(-401, `getTransactionState without txid`)
+    }
     let tranx: StellarSdk.TransactionRecord
     try {
       tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
