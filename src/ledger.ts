@@ -1,5 +1,6 @@
 import WebSocket from 'ws'
 import moment from 'moment'
+import axios from 'axios'
 import BigNumber from 'bignumber.js'
 import StellarSdk from 'stellar-sdk'
 import * as cfg from './configLoader'
@@ -115,9 +116,9 @@ export default class Ledger {
   private _chainConfig?: cfg.ChainConfig
   private _tokenConfig?: cfg.TokenConfig
   private _sdk?: StellarSdk.Server
-  private _closeLedgerListener?: () => void
   private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
   private _latestLedgerNumber: number = -1
+  private _earlistLedgerNumber: number = -1
 
   // Constructor
   private constructor (ws: WebSocket) {
@@ -133,14 +134,6 @@ export default class Ledger {
     } else {
       return this._chainConfig
     }
-  }
-
-  private _handleIncomingLedger (ledgerRecord: StellarSdk.LedgerRecord): void {
-    logger.tag('NewRecord').log(`ledger=${ledgerRecord.sequence},hash=${ledgerRecord.hash}`)
-    if (ledgerRecord.sequence > this._latestLedgerNumber) {
-      this._latestLedgerNumber = ledgerRecord.sequence
-    }
-    this._ledgersCache.set(ledgerRecord.sequence, ledgerRecord)
   }
 
   private _splitAddress (address: string) {
@@ -210,14 +203,12 @@ export default class Ledger {
   get isInitialized () { return !!this._chainConfig }
   get sdk (): StellarSdk.Server {
     if (!this._sdk) {
-      if (!this._chainConfig) {
-        throw new NBError(-1, `missing chain config. ledger isn't initialized`)
-      }
-      this._sdk = new StellarSdk.Server(this._chainConfig.endpoints[0], { allowHttp: true })
+      const chainConfig = this._ensureChainConfig()
+      this._sdk = new StellarSdk.Server(chainConfig.endpoints[0], { allowHttp: true })
     }
     return this._sdk
   }
-  get isConnected (): boolean { return this._latestLedgerNumber !== -1 && this._closeLedgerListener !== undefined }
+  get isConnected (): boolean { return this._latestLedgerNumber !== -1 }
 
   /**
    * Public Methods
@@ -287,17 +278,20 @@ export default class Ledger {
    * 获取最新区块高度
    */
   async getBlockNumber (): Promise<number> {
-    if (!this._closeLedgerListener) {
-      this._closeLedgerListener = this.sdk.ledgers().cursor('now').stream({
-        onmessage: this._handleIncomingLedger.bind(this),
-        onerror: err => {
-          logger.warn(`info=stream disconnected at(${this._latestLedgerNumber}),err=${err.message || err.name}`)
-          if (this._closeLedgerListener) {
-            this._closeLedgerListener()
-            this._closeLedgerListener = undefined
-          }
-        }
-      })
+    const chainCfg = await this._ensureChainConfig()
+    const serverUrl = chainCfg.endpoints[0]
+    let result
+    try {
+      result = (await axios.get(serverUrl)).data
+      if (result.history_latest_ledger > this._latestLedgerNumber) {
+        this._latestLedgerNumber = result.history_latest_ledger
+      }
+      if (result.history_elder_ledger) {
+        this._earlistLedgerNumber = result.history_elder_ledger
+      }
+      logger.log(`ledger=${result.history_latest_ledger},elderLedger=${result.history_elder_ledger},verHorizon=${result.horizon_version},verCore=${result.core_version},network=${result.network_passphrase}`)
+    } catch (err) {
+      logger.tag('getBlockNumber').error(null, err)
     }
     return this._latestLedgerNumber
   }
@@ -321,11 +315,15 @@ export default class Ledger {
    * @param indexOrHash 区块高度
    */
   async getBlock (index: number): Promise<StellarSdk.LedgerRecord | undefined> {
+    if (index < this._earlistLedgerNumber || index > this._latestLedgerNumber) {
+      throw new NBError(-400, `cannot found ledger(${index}), should in [${this._earlistLedgerNumber} - ${this._latestLedgerNumber}]`)
+    }
     let ledgerRecord = this._ledgersCache.get(index)
     if (!ledgerRecord) {
       const result = await this.sdk.ledgers().cursor(index.toString()).limit(1).call()
       if (result.records.length > 0) {
         ledgerRecord = result.records[0]
+        this._ledgersCache.set(index, ledgerRecord)
       }
     }
     return ledgerRecord
