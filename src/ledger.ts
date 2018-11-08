@@ -116,7 +116,6 @@ export default class Ledger {
   private _chainConfig?: cfg.ChainConfig
   private _tokenConfig?: cfg.TokenConfig
   private _sdk?: StellarSdk.Server
-  private _ledgersCache: Map<number, StellarSdk.LedgerRecord> = new Map<number, StellarSdk.LedgerRecord>()
   private _latestLedgerNumber: number = -1
   private _earlistLedgerNumber: number = -1
 
@@ -318,15 +317,11 @@ export default class Ledger {
     if (index < this._earlistLedgerNumber || index > this._latestLedgerNumber) {
       throw new NBError(-400, `cannot found ledger(${index}), should in [${this._earlistLedgerNumber} - ${this._latestLedgerNumber}]`)
     }
-    let ledgerRecord = this._ledgersCache.get(index)
-    if (!ledgerRecord) {
-      const result = await this.sdk.ledgers().cursor(index.toString()).limit(1).call()
-      if (result.records.length > 0) {
-        ledgerRecord = result.records[0]
-        this._ledgersCache.set(index, ledgerRecord)
-      }
+    const result = await (this.sdk.ledgers() as any).ledger(index).call()
+    if (!result) {
+      throw new NBError(-404, `failed to found ledger(${index})`)
     }
-    return ledgerRecord
+    return result as StellarSdk.LedgerRecord
   }
 
   /**
