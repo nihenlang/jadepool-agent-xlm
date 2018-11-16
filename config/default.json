@@ -1,0 +1,16 @@
+{
+  "ws": {
+    "host": "0.0.0.0",
+    "port": 7897
+  },
+  "authorization": {
+    "jadepool": {
+      "pub": "BAC49vQD/HTjm2V70QnuUA6S4KvSuGjgOuRAkR/4OHiV0GSHZX0W7zbC4F8KfbV2ZKt2lG5ntdGRtCq/iMY0Sq8="
+    },
+    "appid": "app-stellar-xlm",
+    "keypair": {
+      "pri": "vxKZb+6qKXe2yg0zoOi9LM/EhExvin5tFcCZ+NpKJVw=",
+      "pub": "BKzjJTLJBlLhuukWJI5CenqxCu7qEGeUlmmj9NoQll75DXKX9TjyMAajH5T9z67Z6N04yFun4oX3J0MDMpJa7+U="
+    }
+  }
+}

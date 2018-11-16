@@ -1,17 +1,38 @@
 {
   "name": "jadepool-agent-xlm",
-  "version": "0.1.0",
+  "version": "0.10.0",
   "scripts": {
-    "dev": "ts-node src/index.ts"
+    "dev": "nodemon",
+    "start": "ts-node src/index.ts",
+    "build": "gulp",
+    "serve": "node dist/index.js"
   },
   "dependencies": {
-    "express": "^4.16.4"
+    "@types/stellar-sdk": "^0.10.4",
+    "bignumber.js": "^7.2.1",
+    "config": "^2.0.1",
+    "keccak": "^1.4.0",
+    "lodash": "^4.17.11",
+    "moment": "^2.22.2",
+    "secp256k1": "^3.5.2",
+    "stellar-sdk": "^0.11.0",
+    "uuid": "^3.3.2",
+    "ws": "^6.1.0"
   },
   "devDependencies": {
-    "@types/express": "^4.16.0",
+    "@types/config": "0.0.34",
+    "@types/lodash": "^4.14.117",
+    "@types/secp256k1": "^3.5.0",
+    "@types/uuid": "^3.4.4",
+    "@types/ws": "^6.0.1",
+    "del": "^3.0.0",
+    "gulp": "^3.9.1",
+    "gulp-typescript": "^5.0.0-alpha.3",
+    "nodemon": "^1.18.5",
+    "supports-color": "^5.5.0",
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "tslint-config-standard": "^8.0.1",
-    "typescript": "^3.1.2"
+    "typescript": "^3.1.3"
   }
 }
