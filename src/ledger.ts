@@ -166,11 +166,25 @@ export default class Ledger {
   private async _trySendTransaction (output: OutInfo, from: string, seq: string, privKey: Buffer): Promise<WithdrawResult | SweepToColdResult | null> {
     const account = new StellarSdk.Account(from, seq)
     const builder = new StellarSdk.TransactionBuilder(account)
-      .addOperation(StellarSdk.Operation.payment({
+    // 检测地址是否有效
+    let toAccount
+    try {
+      toAccount = await this._loadAccount(output.to)
+    } catch (err) {
+      logger.tag('trySendTransaction').log(`failed to load ${output.to}`)
+    }
+    if (!toAccount) {
+      builder.addOperation(StellarSdk.Operation.createAccount({
+        destination: output.to,
+        startingBalance: output.value
+      }))
+    } else {
+      builder.addOperation(StellarSdk.Operation.payment({
         destination: output.to,
         asset: StellarSdk.Asset.native(),
         amount: output.value
       }))
+    }
     if (output.memo) {
       builder.addMemo(StellarSdk.Memo.text(output.memo))
     }
