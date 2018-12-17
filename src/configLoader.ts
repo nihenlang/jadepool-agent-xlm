@@ -60,7 +60,7 @@ export async function loadTokenConfig (ws: WebSocket): Promise<TokenConfig> {
  */
 export async function loadPrivKey (ws: WebSocket, path: string): Promise<string> {
   const jsonRpcSrv = services.get('jsonrpc')
-  const privKeyStr = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-privkey', { path })
+  const privKeyStr = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-privkey', { type: CORE_TYPE, path })
   if (!privKeyStr) {
     throw new NBError(-998, `failed to fetch privkey`)
   }
