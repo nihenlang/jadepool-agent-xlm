@@ -8,7 +8,12 @@
   },
   {
     "method": "initializePostHook",
-    "params": [],
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      }
+    ],
     "return": {
       "type": "void"
     }
@@ -86,6 +91,22 @@
     }
   },
   {
+    "method": "getSystemAddress",
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "addressType",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "string"
+    }
+  },
+  {
     "method": "genAddress",
     "params": [
       {
@@ -94,6 +115,58 @@
       },
       {
         "name": "index",
+        "type": "number"
+      },
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "addressType",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "string"
+    }
+  },
+  {
+    "method": "genAddressByPrivKey",
+    "params": [
+      {
+        "name": "privKey",
+        "type": "string"
+      },
+      {
+        "name": "index",
+        "type": "number"
+      },
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "addressType",
+        "type": "number"
+      }
+    ],
+    "return": {
+      "type": "string"
+    }
+  },
+  {
+    "method": "normalizeAddress",
+    "params": [
+      {
+        "name": "address",
+        "type": "string"
+      },
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "addressType",
         "type": "number"
       }
     ],
