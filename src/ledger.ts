@@ -429,7 +429,8 @@ export default class Ledger {
       try {
         payments = await this.sdk.payments().forTransaction(txn.txid).call()
       } catch (err) {
-        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid}`)
+        const resdata = err.response || {}
+        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid},code=${resdata.status || resdata.code},msg=${resdata.detail || resdata.message}`)
       }
       // 找遍全部的records
       let idx = 0

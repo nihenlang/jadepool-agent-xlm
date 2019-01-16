@@ -1,15 +1,27 @@
 import _ from 'lodash'
-import Logger from './utils/logger'
-import { services } from './services/core'
-import JSONRPCService from './services/jsonrpc.service'
+import config from 'config'
+import Logger from '@jadepool/logger'
+import { jadepool, consts } from '@jadepool/lib-core'
+import invokeMethod from './methods'
 
 const logger = Logger.of('App-Stellar')
 
 async function main () {
+  await jadepool.initialize(new jadepool.Context(
+    consts.SERVER_TYPES.EXTERNAL,
+    process.env.npm_package_version || require('./package.json').version,
+    invokeMethod,
+    config
+  ))
+
   const acceptJson = require('./acceptInterface.json')
   const acceptMethods = _.map(acceptJson, info => _.kebabCase(info.method))
   _.forEach(acceptMethods, method => logger.tag('Accept').log(method))
-  services.register(JSONRPCService, { acceptMethods })
+  await jadepool.registerService(consts.SERVICE_NAMES.JSONRPC_SERVER, {
+    host: config.get<string>('ws.host'),
+    port: config.get<number>('ws.port'),
+    acceptMethods
+  })
 }
 
 process.on('warning', (warning) => {
