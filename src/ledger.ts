@@ -3,9 +3,9 @@ import moment from 'moment'
 import axios from 'axios'
 import BigNumber from 'bignumber.js'
 import StellarSdk from 'stellar-sdk'
+import Logger from '@jadepool/logger'
+import { NBError } from '@jadepool/lib-core'
 import * as cfg from './configLoader'
-import NBError from './utils/NBError'
-import Logger from './utils/logger'
 
 const logger = Logger.of('Ledger', 'Stellar')
 

@@ -1,7 +1,6 @@
 import WebSocket from 'ws'
+import { NBError } from '@jadepool/lib-core'
 import Ledger from '../ledger'
-import NBError from '../utils/NBError'
-// import * as cfg from '../configLoader'
 
 export default async (args: { address: string, coinName: string }, ws: WebSocket) => {
   if (!args.address) {

@@ -1,9 +1,8 @@
 import WebSocket from 'ws'
 import _ from 'lodash'
+import { NBError } from '@jadepool/lib-core'
+import Logger from '@jadepool/logger'
 import Ledger from '../ledger'
-import * as cfg from '../configLoader'
-import Logger from '../utils/logger'
-import NBError from '../utils/NBError'
 
 /**
  * @param methodName 调用的方法名

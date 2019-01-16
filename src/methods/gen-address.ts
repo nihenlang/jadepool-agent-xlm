@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
+import { NBError } from '@jadepool/lib-core'
 import Ledger from '../ledger'
 import * as cfg from '../configLoader'
-import NBError from '../utils/NBError'
 
 /**
  * 全新地址创建
