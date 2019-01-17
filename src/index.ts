@@ -18,9 +18,12 @@ async function main () {
   const acceptMethods = _.map(acceptJson, info => _.kebabCase(info.method))
   _.forEach(acceptMethods, method => logger.tag('Accept').log(method))
   await jadepool.registerService(consts.SERVICE_NAMES.JSONRPC_SERVER, {
+    acceptMethods,
     host: config.get<string>('ws.host'),
     port: config.get<number>('ws.port'),
-    acceptMethods
+    signerId: config.get<string>('authorization.appid'),
+    signer: config.get<string>('authorization.keypair.pri'),
+    verifier: config.get<string>('authorization.jadepool.pub')
   })
 }
 
