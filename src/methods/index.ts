@@ -9,7 +9,7 @@ import Ledger from '../ledger'
  * @param args 参数名
  * @param ws 调用该方法的socketClient
  */
-export default async (methodName: string, args: object = {}, ws: WebSocket) => {
+export default async (methodName: string, namespace: string, args: object = {}, ws: WebSocket) => {
   // 准备LedgerClient
   const ledger = Ledger.getInstance(ws)
   if (!ledger.isInitialized) {
