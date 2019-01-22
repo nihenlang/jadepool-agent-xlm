@@ -9,7 +9,7 @@ const logger = Logger.of('App-Stellar')
 async function main () {
   await jadepool.initialize(new jadepool.Context(
     consts.SERVER_TYPES.EXTERNAL,
-    process.env.npm_package_version || require('./package.json').version,
+    process.env.npm_package_version || require('../package.json').version,
     invokeMethod,
     config
   ))
