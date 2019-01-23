@@ -302,6 +302,16 @@
           "name": "meta",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
         }
       ]
     }
