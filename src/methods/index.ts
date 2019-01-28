@@ -1,16 +1,15 @@
 import WebSocket from 'ws'
 import _ from 'lodash'
+import { NBError } from '@jadepool/lib-core'
+import Logger from '@jadepool/logger'
 import Ledger from '../ledger'
-import * as cfg from '../configLoader'
-import Logger from '../utils/logger'
-import NBError from '../utils/NBError'
 
 /**
  * @param methodName 调用的方法名
  * @param args 参数名
  * @param ws 调用该方法的socketClient
  */
-export default async (methodName: string, args: object = {}, ws: WebSocket) => {
+export default async (methodName: string, namespace: string, args: object = {}, ws: WebSocket) => {
   // 准备LedgerClient
   const ledger = Ledger.getInstance(ws)
   if (!ledger.isInitialized) {

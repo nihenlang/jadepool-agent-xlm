@@ -1,7 +1,6 @@
 import WebSocket from 'ws'
+import { NBError } from '@jadepool/lib-core'
 import Ledger from '../ledger'
-import * as cfg from '../configLoader'
-import NBError from '../utils/NBError'
 
 export default async (args: { txns: any[], bn?: number, hasScanTask?: boolean }, ws: WebSocket) => {
   if (!args.txns || !Array.isArray(args.txns)) {
