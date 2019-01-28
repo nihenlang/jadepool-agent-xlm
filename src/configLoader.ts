@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import WebSocket from 'ws'
-import { services } from './services/core'
-import NBError from './utils/NBError'
+import { NBError, jadepool, consts } from '@jadepool/lib-core'
 
 export const CHAIN_KEY = 'Stellar'
 export const CORE_TYPE = 'XLM'
@@ -26,7 +25,7 @@ export type TokenConfig = {
  * 'rpc-fetch-privkey'
  */
 export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
-  const jsonRpcSrv = services.get('jsonrpc')
+  const jsonRpcSrv = jadepool.getService(consts.SERVICE_NAMES.JSONRPC_SERVER)
   const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-chaincfg', { chain: CHAIN_KEY })
   const chainIndex = _.get(cfgData, 'data.chainIndex')
   if (!cfgData || !cfgData.node || !chainIndex) {
@@ -41,7 +40,7 @@ export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
 }
 
 export async function loadTokenConfig (ws: WebSocket): Promise<TokenConfig> {
-  const jsonRpcSrv = services.get('jsonrpc')
+  const jsonRpcSrv = jadepool.getService(consts.SERVICE_NAMES.JSONRPC_SERVER)
   const cfgData = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-coincfg', { type: CORE_TYPE })
   if (!cfgData) {
     throw new NBError(500, `failed to load config`)
@@ -59,7 +58,7 @@ export async function loadTokenConfig (ws: WebSocket): Promise<TokenConfig> {
  * 获取私钥
  */
 export async function loadPrivKey (ws: WebSocket, path: string): Promise<string> {
-  const jsonRpcSrv = services.get('jsonrpc')
+  const jsonRpcSrv = jadepool.getService(consts.SERVICE_NAMES.JSONRPC_SERVER)
   const privKeyStr = await jsonRpcSrv.requestJSONRPC(ws, 'rpc-fetch-privkey', { type: CORE_TYPE, path })
   if (!privKeyStr) {
     throw new NBError(-998, `failed to fetch privkey`)

@@ -3,9 +3,9 @@ import moment from 'moment'
 import axios from 'axios'
 import BigNumber from 'bignumber.js'
 import StellarSdk from 'stellar-sdk'
+import Logger from '@jadepool/logger'
+import { NBError } from '@jadepool/lib-core'
 import * as cfg from './configLoader'
-import NBError from './utils/NBError'
-import Logger from './utils/logger'
 
 const logger = Logger.of('Ledger', 'Stellar')
 
@@ -327,7 +327,7 @@ export default class Ledger {
    * 获取区块信息
    * @param indexOrHash 区块高度
    */
-  async getBlock (index: number): Promise<StellarSdk.LedgerRecord | undefined> {
+  async getBlock (index: number): Promise<StellarSdk.Server.LedgerRecord | undefined> {
     if (index < this._earlistLedgerNumber || index > this._latestLedgerNumber) {
       throw new NBError(-400, `cannot found ledger(${index}), should in [${this._earlistLedgerNumber} - ${this._latestLedgerNumber}]`)
     }
@@ -335,7 +335,7 @@ export default class Ledger {
     if (!result) {
       throw new NBError(-404, `failed to found ledger(${index})`)
     }
-    return result as StellarSdk.LedgerRecord
+    return result as StellarSdk.Server.LedgerRecord
   }
 
   /**
@@ -346,7 +346,7 @@ export default class Ledger {
   async getOrderState (info: OrderInfo, bn?: number): Promise<OrderState> {
     let ret: OrderState
     try {
-      const tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
+      const tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.Server.TransactionRecord
       ret = { found: true, state: 'pending' }
       ret.block = tranx.ledger_attr
       ret.fee = new BigNumber(tranx.fee_paid).times(FEE_PER_STROOP).toString()
@@ -366,9 +366,9 @@ export default class Ledger {
     if (!info || !info.txid) {
       throw new NBError(-401, `getTransactionState without txid`)
     }
-    let tranx: StellarSdk.TransactionRecord
+    let tranx: StellarSdk.Server.TransactionRecord
     try {
-      tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.TransactionRecord
+      tranx = ((await this.sdk.transactions().transaction(info.txid).call()) as any) as StellarSdk.Server.TransactionRecord
     } catch (err) {
       logger.tag('getTransactionState').error(`failed to get tx(${info.txid})`, err)
       return undefined
@@ -376,7 +376,7 @@ export default class Ledger {
     const effects = (await tranx.effects()) || {}
     let from: TxEffectData[] = []
     let to: TxEffectData[] = []
-    const records: StellarSdk.EffectRecord[] = (effects as any).records
+    const records: StellarSdk.Server.EffectRecord[] = (effects as any).records
     if (records && records.length > 0) {
       records.forEach(effect => {
         switch (effect.type) {
@@ -425,11 +425,12 @@ export default class Ledger {
     let incomingRecords: IncomingRecord[] = []
     await Promise.all(txns.map(async txn => {
       // 使用官方payments相关内容获
-      let payments: StellarSdk.CollectionPage<StellarSdk.OperationRecord> | undefined
+      let payments: StellarSdk.Server.CollectionPage<StellarSdk.Server.OperationRecord> | undefined
       try {
         payments = await this.sdk.payments().forTransaction(txn.txid).call()
       } catch (err) {
-        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid}`)
+        const resdata = err.response || {}
+        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid},code=${resdata.status || resdata.code},msg=${resdata.detail || resdata.message}`)
       }
       // 找遍全部的records
       let idx = 0

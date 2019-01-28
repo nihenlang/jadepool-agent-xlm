@@ -3,19 +3,23 @@ let del = require('del')
 let ts = require('gulp-typescript')
 let tsp = ts.createProject('tsconfig.json') //使用tsconfig.json文件配置tsc
 
-gulp.task('clean:dist', cb => {
-  del(['dist/*'], cb)
-})
+function clean () {
+  return del(['dist/*'])
+}
+clean.displayName = 'clean:dist'
 
-gulp.task('build:ts', () => {
+function build () {
   return gulp.src(['./src/**/*.ts'])
     .pipe(tsp())
     .pipe(gulp.dest('./dist'))
-})
+}
+build.displayName = 'build:ts'
 
-gulp.task('copy:js|json', () => {
+function copy () {
   return gulp.src(['./src/**/*.js', './src/**/*.json'])
     .pipe(gulp.dest('./dist'))
-})
+}
+copy.displayName = 'copy:js|json'
 
-gulp.task('default', ['clean:dist', 'build:ts', 'copy:js|json'])
+exports.build = build
+exports.default = gulp.series(clean, build, copy)
