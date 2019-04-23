@@ -10,6 +10,7 @@
   "dependencies": {
     "@jadepool/lib-core": "^0.8.1",
     "@jadepool/logger": "^1.0.1",
+    "@types/agenda": "^2.0.4",
     "@types/stellar-sdk": "^0.10.6",
     "bignumber.js": "^7.2.1",
     "config": "^2.0.2",
