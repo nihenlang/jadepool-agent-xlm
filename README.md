@@ -65,9 +65,8 @@ let sig = {
 
 ### 必须实现的主要方法
 
-- **genAddress** 生成充值地址，请求参数：
-  - path (可选)衍生路径
-  - index 地址序号
+- **genAddressByPrivKey** 生成充值地址（二选一），请求参数见配置
+- **genAddressByPubKey** 生成充值地址（二选一），请求参数见配置
 - **validateAddress** 验证地址，请求参数：
   - address 被查地址
 - **getBlockNumber** 获取最新区块号，请求参数: 无
@@ -107,8 +106,5 @@ let sig = {
 ### 可选实现的Hook方法（在定时任务中会调用）
 
 - **initializePostHook** 系统初始化完成后被调用
-- **createAddressPostHook** 创建充值地址后被调用，该hook的默认方法为设置新地址为used状态
 - **txAndSweepPreHook** 出金逻辑（提现等）定时任务启动前
 - **txAndSweepPostHook** 出金逻辑（提现等）定时任务启动后
-- **closerPreHook** 入金扫描（充值等）定时任务启动前
-- **closerPostHook** 入金扫描（充值等）定时任务启动后
