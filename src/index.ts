@@ -14,8 +14,21 @@ async function main () {
     config
   ))
 
-  const acceptJson = require('./acceptInterface.json')
-  const acceptMethods = _.map(acceptJson, info => _.kebabCase(info.method))
+  const acceptMethods = [
+    'ensure-connected',
+    'fill-transaction',
+    'filter-incoming-transactions',
+    'gen-address-by-priv-key',
+    'get-balance',
+    'get-block-number',
+    'get-block-result',
+    'get-transaction-history',
+    'get-order-state',
+    'get-transaction-state',
+    'sweep-to-cold',
+    'validate-address',
+    'withdraw'
+  ]
   _.forEach(acceptMethods, method => logger.tag('Accept').log(method))
   await jadepool.registerService(consts.SERVICE_NAMES.JSONRPC_SERVER, {
     acceptMethods,

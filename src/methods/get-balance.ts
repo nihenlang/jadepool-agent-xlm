@@ -1,8 +1,9 @@
 import WebSocket from 'ws'
 import { NBError } from '@jadepool/lib-core'
 import Ledger from '../ledger'
+import { ParamGetBalance } from '../types/params'
 
-export default async (args: { address: string, coinName: string }, ws: WebSocket) => {
+export default async (args: ParamGetBalance, ws: WebSocket) => {
   if (!args.address) {
     throw new NBError(-801, `missing address`)
   }

@@ -65,6 +65,7 @@ let sig = {
 
 ### 必须实现的主要方法
 
+- **ensureConnected** 检查节点是否连接，请求参数: 无
 - **genAddressByPrivKey** 生成充值地址（二选一），请求参数见配置
 - **genAddressByPubKey** 生成充值地址（二选一），请求参数见配置
 - **validateAddress** 验证地址，请求参数：
@@ -73,8 +74,6 @@ let sig = {
 - **getBalance** 获取地址/钱包余额，请求参数：
   - address 被查地址(若UTXO类可返回钱包余额)
   - coinName 币种别名
-- **getBlock** 获取Block基础信息(瑶池用于检查区块是否存在)，请求参数：
-  - indexOrHash 区块号(or区块哈希，通常不用)
 - **getBlockResult** 获取Block下的全部txns，请求参数：
   - indexOrHash 区块号(or区块哈希，通常不用)
 - **getTransactionHistory** 获取地址内的全部txns，请求参数：
@@ -97,14 +96,12 @@ let sig = {
 
 ### 可选实现的方法（若不实现则使用默认函数）
 
-- **ensureConnected** 检查节点是否连接，请求参数: 无
 - **sweepToHot** 发起汇总请求，请求参数:
   - coinName 币种别名
   - fromAddress 来源地址
   - cap 金额
+  - order 订单详情
 
 ### 可选实现的Hook方法（在定时任务中会调用）
 
 - **initializePostHook** 系统初始化完成后被调用
-- **txAndSweepPreHook** 出金逻辑（提现等）定时任务启动前
-- **txAndSweepPostHook** 出金逻辑（提现等）定时任务启动后

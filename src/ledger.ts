@@ -6,92 +6,12 @@ import StellarSdk from 'stellar-sdk'
 import Logger from '@jadepool/logger'
 import { NBError } from '@jadepool/lib-core'
 import * as cfg from './configLoader'
+import { ChainConfig } from './types/cfg'
+import { OutInfo, OrderInfo, ParamFilterIncomingTransactions, ParamFillTransaction } from './types/params'
+import { OrderSentResult, OrderState, TxData, TxEffectData, TxResult, IncomingRecord, BlockResult } from './types/results'
 
 const logger = Logger.of('Ledger', 'Stellar')
 
-// Interface and Types
-/** TxData 对象 */
-type TxEffectData = {
-  address: string,
-  value: string,
-  txid?: string,
-  n?: number,
-  asset?: string
-}
-interface TxData {
-  type: string
-  hash: string
-  blockHash: string
-  fee: string
-  blockNumber: number
-  confirmations: number
-  from: TxEffectData[]
-  to: TxEffectData[]
-}
-/**
- * 提现信息
- */
-interface OutInfo {
-  to: string
-  value: string
-  memo?: string
-  id?: number
-}
-/**
- * 充值对象
- */
-interface IncomingRecord {
-  txid: string
-  meta: string
-  bn: number
-  coreType: string
-  coinName: string
-  fromAddress: string
-  toAddress: string
-  value: string
-  n: number
-  // state判定
-  isUnexpected: boolean
-  isSpecial: boolean
-  isInternal: boolean
-}
-/** 交易结果 */
-interface TxResult {
-  txid: string
-  meta?: string
-  [key: string]: any
-  // block: number
-  // from: string
-  // from_seq: number
-  // fee: string,
-}
-interface OrderInfo {
-  txid: string
-  coinName: string
-  meta?: string
-  block?: number
-}
-interface OrderState {
-  found: boolean
-  block?: number
-  fee?: string
-  state?: 'online' | 'pending' | 'failed'
-  message?: string
-}
-interface BlockResult {
-  hash: string,
-  timestamp: number,
-  txns: TxResult[]
-}
-/** 提现结果 */
-interface WithdrawResult extends TxResult {
-  orderIds: number[]
-}
-/** 热转冷结果 */
-interface SweepToColdResult extends TxResult {
-  to?: string
-  value?: string
-}
 // 常量
 const FEE_PER_STROOP = new BigNumber(0.00001).div(100).toString()
 
@@ -113,8 +33,7 @@ export default class Ledger {
 
   // Members
   private _ws: WebSocket
-  private _chainConfig?: cfg.ChainConfig
-  private _tokenConfig?: cfg.TokenConfig
+  private _chainConfig?: ChainConfig
   private _sdk?: StellarSdk.Server
   private _latestLedgerNumber: number = -1
   private _earlistLedgerNumber: number = -1
@@ -127,7 +46,7 @@ export default class Ledger {
   /**
    * Private Methods
    */
-  private _ensureChainConfig (): cfg.ChainConfig {
+  private _ensureChainConfig (): ChainConfig {
     if (!this._chainConfig) {
       throw new NBError(-10, `missing chain config. ledger isn't initialized`)
     } else {
@@ -163,32 +82,36 @@ export default class Ledger {
   /**
    * 发送交易
    */
-  private async _trySendTransaction (output: OutInfo, from: string, seq: string, privKey: Buffer): Promise<WithdrawResult | SweepToColdResult | null> {
+  private async _trySendTransaction (privKey: Buffer, seq: string, from: string, to: string, value: string, memo?: string, id?: number): Promise<OrderSentResult> {
     const account = new StellarSdk.Account(from, seq)
     const builder = new StellarSdk.TransactionBuilder(account)
     // 检测地址是否有效
     let toAccount
     try {
-      toAccount = await this._loadAccount(output.to)
+      toAccount = await this._loadAccount(to)
     } catch (err) {
-      logger.tag('trySendTransaction').log(`failed to load ${output.to}`)
+      logger.tag('trySendTransaction').log(`failed to load ${to}`)
     }
     if (!toAccount) {
       builder.addOperation(StellarSdk.Operation.createAccount({
-        destination: output.to,
-        startingBalance: output.value
+        destination: to,
+        startingBalance: value
       }))
     } else {
       builder.addOperation(StellarSdk.Operation.payment({
-        destination: output.to,
+        destination: to,
         asset: StellarSdk.Asset.native(),
-        amount: output.value
+        amount: value
       }))
     }
-    if (output.memo) {
-      builder.addMemo(StellarSdk.Memo.text(output.memo))
+    if (memo) {
+      builder.addMemo(StellarSdk.Memo.text(memo))
     }
-    let txResult: WithdrawResult | SweepToColdResult | null = null
+    const txResult: OrderSentResult = {
+      txid: '',
+      meta: seq.toString(),
+      orderIds: id ? [id] : []
+    }
     try {
       const transaction = builder.build()
       transaction.sign(StellarSdk.Keypair.fromRawEd25519Seed(privKey))
@@ -199,13 +122,9 @@ export default class Ledger {
         logger.tag(`submitTransaction`).error(null, err)
       })
       // 导出txResult
-      txResult = {
-        txid: txid,
-        meta: seq.toString(),
-        orderIds: output.id ? [output.id] : []
-      }
+      txResult.txid = txid
     } catch (err) {
-      throw err
+      txResult.error = err.message
     }
     return txResult
   }
@@ -226,7 +145,7 @@ export default class Ledger {
   /**
    * Public Methods
    */
-  async getChainConfig (): Promise<cfg.ChainConfig> {
+  async getChainConfig (): Promise<ChainConfig> {
     if (!this._chainConfig) {
       this._sdk = undefined
       this._chainConfig = await cfg.loadChainConfig(this._ws)
@@ -238,39 +157,29 @@ export default class Ledger {
     }
     return this._chainConfig
   }
-  async getTokenConfig (): Promise<cfg.TokenConfig> {
-    if (!this._tokenConfig) {
-      this._tokenConfig = await cfg.loadTokenConfig(this._ws)
-    }
-    return this._tokenConfig
-  }
   /**
    * 获取用户地址
    * @param privKey 私钥
+   */
+  genAddressByPrivKey (privKey: Buffer): string {
+    let hotAddress: string | undefined
+    if (privKey.length !== 32) {
+      throw new NBError(-999, `privKey length should be 32`)
+    }
+    const keypair = StellarSdk.Keypair.fromRawEd25519Seed(privKey)
+    hotAddress = keypair.publicKey()
+    return hotAddress
+  }
+  /**
+   * 创建地址
+   * @param mainAddress 主地址
    * @param index 用户index
    */
-  genAddress (privKey?: Buffer, opts?: { mainAddress: string, index: number }): string {
+  genAddressByHotAndIdx (mainAddress: string, index: number): string {
     const chainCfg = this._ensureChainConfig()
-    let hotAddress: string | undefined
-    if (!privKey && opts) {
-      hotAddress = opts.mainAddress
-    } else if (privKey) {
-      if (privKey.length !== 32) {
-        throw new NBError(-999, `privKey length should be 32`)
-      }
-      const keypair = StellarSdk.Keypair.fromRawEd25519Seed(privKey)
-      hotAddress = keypair.publicKey()
-    } else {
-      throw new NBError(-800, `missing parameter`)
-    }
-    // 若不存在index，则返回热主地址
-    if (opts === undefined) {
-      return hotAddress
-    } else {
-      // 普通充值地址的创建
-      const chainIndex = (chainCfg.chainIndex || 1) * 10000
-      return hotAddress + `[${chainIndex + opts.index}]`
-    }
+    // 普通充值地址的创建
+    const chainIndex = (chainCfg.chainIndex || 1) * 10000
+    return mainAddress + `[${chainIndex + index}]`
   }
 
   /**
@@ -415,78 +324,87 @@ export default class Ledger {
   }
 
   /**
-   * 筛选出系统所需的订单
-   * @param hotAddress 热钱包地址
-   * @param txns 从区块链获取的交易信息
-   * @param bn 可选参数，这些txns所在的区块号
-   * @param hasScanTask 可选参数，是否为扫描任务
+   * 填充TX
    */
-  async filterTransactions (hotAddress: string, txns: TxResult[], bn?: number, hasScanTask?: boolean): Promise<IncomingRecord[]> {
+  async fillTransaction (args: ParamFillTransaction): Promise<any> {
+    // 使用官方payments相关内容获
+    let payments: StellarSdk.Server.CollectionPage<StellarSdk.Server.OperationRecord> | undefined
+    try {
+      payments = await this.sdk.payments().forTransaction(args.txn.txid).call()
+    } catch (err) {
+      const resdata = err.response || {}
+      logger.tag('failed-to-load-payments').warn(`txid=${args.txn.txid},code=${resdata.status || resdata.code},msg=${resdata.detail || resdata.message}`)
+    }
+    // 找遍全部的records
+    let records: StellarSdk.Server.OperationRecord[] = []
+    let idx = 0
+    while (payments && payments.records.length > 0) {
+      // 扫描记录
+      records = records.concat(payments.records)
+      // 查找剩余的payments
+      payments = await payments.next()
+    } // end while
+    return Object.assign({ records: records }, args.txn)
+  }
+
+  /**
+   * 筛选出系统所需的订单
+   */
+  async filterTransactions ({ txns, wallet, hotAddress, coldAddress }: ParamFilterIncomingTransactions): Promise<IncomingRecord[]> {
     let incomingRecords: IncomingRecord[] = []
     await Promise.all(txns.map(async txn => {
-      // 使用官方payments相关内容获
-      let payments: StellarSdk.Server.CollectionPage<StellarSdk.Server.OperationRecord> | undefined
-      try {
-        payments = await this.sdk.payments().forTransaction(txn.txid).call()
-      } catch (err) {
-        const resdata = err.response || {}
-        logger.tag('failed-to-load-payments').warn(`txid=${txn.txid},code=${resdata.status || resdata.code},msg=${resdata.detail || resdata.message}`)
-      }
-      // 找遍全部的records
       let idx = 0
-      while (payments && payments.records.length > 0) {
-        // 扫描记录
-        payments.records.forEach(paymentRecord => {
-          let to = ''
-          let value = ''
-          let assetType = 'native'
-          let from = txn.from
-          switch (paymentRecord.type) {
-            case 'create_account':
-              from = paymentRecord.funder
-              to = paymentRecord.account
-              value = paymentRecord.starting_balance
-              break
-            case 'payment':
-              from = paymentRecord.from
-              to = paymentRecord.to
-              value = paymentRecord.amount
-              assetType = paymentRecord.asset_type
-              break
-            case 'path_payment':
-              from = paymentRecord.from
-              to = paymentRecord.to
-              value = paymentRecord.amount
-              assetType = paymentRecord.asset_type
-              break
-            default:
-              return
-          }
-          // 过滤仅提取瑶池相关交易
-          if (to !== hotAddress) return
-          // 过滤仅提取native币交易
-          if (assetType !== 'native') return
-          const toName = txn.memo ? hotAddress + `[${txn.memo}]` : hotAddress
-          // 组织Incoming对象
-          incomingRecords.push({
-            txid: txn.txid,
-            meta: '',
-            bn: txn.block,
-            coreType: cfg.CORE_TYPE,
-            coinName: cfg.CORE_TYPE,
-            fromAddress: from,
-            toAddress: toName,
-            value: value,
-            n: idx++,
-            // state判定均为false
-            isInternal: false,
-            isSpecial: false,
-            isUnexpected: false
-          })
-        }) // end foreach
-        // 查找剩余的payments
-        payments = await payments.next()
-      } // end while
+      const records = txn.records || []
+      // 找遍全部的records
+      for (const paymentRecord of records) {
+        let to = ''
+        let value = ''
+        let assetType = 'native'
+        let from = txn.from
+        switch (paymentRecord.type) {
+          case 'create_account':
+            from = paymentRecord.funder
+            to = paymentRecord.account
+            value = paymentRecord.starting_balance
+            break
+          case 'payment':
+            from = paymentRecord.from
+            to = paymentRecord.to
+            value = paymentRecord.amount
+            assetType = paymentRecord.asset_type
+            break
+          case 'path_payment':
+            from = paymentRecord.from
+            to = paymentRecord.to
+            value = paymentRecord.amount
+            assetType = paymentRecord.asset_type
+            break
+          default:
+            return
+        }
+        // 过滤仅提取瑶池相关交易
+        if (to !== hotAddress) return
+        // 过滤仅提取native币交易
+        if (assetType !== 'native') return
+        const toName = txn.memo ? hotAddress + `[${txn.memo}]` : hotAddress
+        // 组织Incoming对象
+        incomingRecords.push({
+          wallet,
+          txid: txn.txid,
+          meta: '',
+          bn: txn.block,
+          coreType: cfg.CORE_TYPE,
+          coinName: cfg.CORE_TYPE,
+          fromAddress: from,
+          toAddress: toName,
+          value: value,
+          n: idx++,
+          // state判定均为false
+          isInternal: false,
+          isSpecial: false,
+          isUnexpected: false
+        })
+      }
     }))
     return incomingRecords
   }
@@ -549,27 +467,23 @@ export default class Ledger {
   /**
    * 提现
    */
-  async withdraw (from: string, outputs: OutInfo[], privKey: Buffer): Promise<WithdrawResult[]> {
+  async withdraw (from: string, outputs: OutInfo[], privKey: Buffer): Promise<OrderSentResult[]> {
     const fromAccount = await this._loadAccount(from)
     const hotAddress = fromAccount.accountId()
 
-    let results: WithdrawResult[] = []
+    let results: OrderSentResult[] = []
     for (let i = 0; i < outputs.length; i++) {
       const output = outputs[i]
       const thisSeqNumber = fromAccount.sequenceNumber()
       const toAccount = this._splitAddress(output.to)
-      output.to = toAccount.account
-      output.memo = toAccount.memo
-      try {
-        logger.tag('WITHDRAW', 'Prepare').log(`from=${hotAddress},seq=${thisSeqNumber},to=${output.to},memo=${output.memo},value=${output.value}`)
-        let result = await this._trySendTransaction(output, hotAddress, thisSeqNumber, privKey)
-        if (result) {
-          results.push(result as WithdrawResult)
-          fromAccount.incrementSequenceNumber()
-          logger.tag('WITHDRAW', 'Sent').log(`txid=${result.txid},meta=${result.meta}`)
-        }
-      } catch (err) {
-        logger.tag('failed-to-trySendTransaction').error(`id=${output.id},to=${output.to},value=${output.value}`, err)
+      const toAddress = toAccount.account
+      const toMemo = toAccount.memo || output.actionMemo
+      logger.tag('WITHDRAW', 'Prepare').log(`from=${hotAddress},seq=${thisSeqNumber},to=${toAddress},memo=${toMemo},value=${output.value}`)
+      let result = await this._trySendTransaction(privKey, thisSeqNumber, hotAddress, toAddress, output.value, toMemo, output.id)
+      if (result) {
+        results.push(result)
+        fromAccount.incrementSequenceNumber()
+        logger.tag('WITHDRAW', 'Sent').log(`txid=${result.txid},meta=${result.meta}`)
       }
     }
     return results
@@ -580,22 +494,16 @@ export default class Ledger {
    * @param to
    * @param cap 真实金额
    */
-  async sweepToCold (from: string, to: string, cap: string, privKey: Buffer): Promise<SweepToColdResult | undefined> {
+  async sweepToCold (from: string, to: string, cap: string, privKey: Buffer): Promise<OrderSentResult | undefined> {
     const fromAccount = await this._loadAccount(from)
     const hotAddress = fromAccount.accountId()
     const seqNumber = fromAccount.sequenceNumber()
     logger.log(`from=${hotAddress},seq=${seqNumber}`)
 
-    const output = { to, value: cap }
-    try {
-      const result = await this._trySendTransaction(output, hotAddress, seqNumber, privKey)
-      if (result) {
-        logger.tag('SWEEP', 'Sent').log(`txid=${result.txid},meta=${result.meta},cap=${cap}`)
-        return Object.assign(output, result)
-      }
-    } catch (err) {
-      logger.tag('failed-to-sweepToCold').error(`to=${output.to},value=${output.value}`, err)
+    let result = await this._trySendTransaction(privKey, seqNumber, hotAddress, to, cap)
+    if (result) {
+      logger.tag('SWEEP', 'Sent').log(`txid=${result.txid},meta=${result.meta},cap=${cap}`)
     }
-    return undefined
+    return result
   }
 }
