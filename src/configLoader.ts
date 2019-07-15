@@ -13,11 +13,10 @@ export async function loadChainConfig (ws: WebSocket): Promise<ChainConfig> {
   if (!cfgData || !cfgData.node || !chainIndex) {
     throw new NBError(500, `failed to initialize ledger`)
   }
-  const nodeData: any = _.find(cfgData.node, { name: CHAIN_KEY })
   return {
     chainIndex,
     isTestNet: cfgData.isTestNet,
-    endpoints: nodeData.net
+    endpoints: _.filter(cfgData.node, node => node.name === CHAIN_KEY).map(node => node.url)
   }
 }
 
