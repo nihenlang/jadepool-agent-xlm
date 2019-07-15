@@ -34,9 +34,12 @@ async function main () {
     acceptMethods,
     host: config.get<string>('ws.host'),
     port: config.get<number>('ws.port'),
-    signerId: config.get<string>('authorization.appid'),
-    signer: config.get<string>('authorization.keypair.pri'),
-    verifier: config.get<string>('authorization.jadepool.pub')
+    // 此为使用内部签名模式
+    authWithTimestamp: true
+    // 以下为私钥公钥配置模式
+    // signerId: config.get<string>('authorization.appid'),
+    // signer: config.get<string>('authorization.keypair.pri'),
+    // verifier: config.get<string>('authorization.jadepool.pub')
   })
 }
 

@@ -8,7 +8,7 @@
     "serve": "node dist/index.js"
   },
   "dependencies": {
-    "@jadepool/lib-core": "~0.11.16",
+    "@jadepool/lib-core": "~0.11.17",
     "@jadepool/logger": "^1.0.1",
     "@types/agenda": "^2.0.4",
     "@types/stellar-sdk": "^0.10.6",
