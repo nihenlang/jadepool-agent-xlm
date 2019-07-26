@@ -34,6 +34,7 @@ async function main () {
     acceptMethods,
     host: config.get<string>('ws.host'),
     port: config.get<number>('ws.port'),
+    withoutTimestamp: true,
     // 此为使用内部签名模式
     authWithTimestamp: true
     // 以下为私钥公钥配置模式
