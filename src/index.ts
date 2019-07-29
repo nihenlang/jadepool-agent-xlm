@@ -14,16 +14,33 @@ async function main () {
     config
   ))
 
-  const acceptJson = require('./acceptInterface.json')
-  const acceptMethods = _.map(acceptJson, info => _.kebabCase(info.method))
+  const acceptMethods = [
+    'ensure-connected',
+    'fill-transaction',
+    'filter-incoming-transactions',
+    'gen-address-by-priv-key',
+    'get-balance',
+    'get-block-number',
+    'get-block-result',
+    'get-transaction-history',
+    'get-order-state',
+    'get-transaction-state',
+    'sweep-to-cold',
+    'validate-address',
+    'withdraw'
+  ]
   _.forEach(acceptMethods, method => logger.tag('Accept').log(method))
   await jadepool.registerService(consts.SERVICE_NAMES.JSONRPC_SERVER, {
     acceptMethods,
     host: config.get<string>('ws.host'),
     port: config.get<number>('ws.port'),
-    signerId: config.get<string>('authorization.appid'),
-    signer: config.get<string>('authorization.keypair.pri'),
-    verifier: config.get<string>('authorization.jadepool.pub')
+    // 此为使用内部签名模式
+    authWithTimestamp: true
+    // 以下为私钥公钥配置模式
+    // withoutTimestamp: true,
+    // signerId: config.get<string>('authorization.appid'),
+    // signer: config.get<string>('authorization.keypair.pri'),
+    // verifier: config.get<string>('authorization.jadepool.pub')
   })
 }
 
