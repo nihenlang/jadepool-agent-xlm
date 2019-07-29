@@ -1,9 +1,9 @@
 import WebSocket from 'ws'
 import { NBError } from '@jadepool/lib-core'
 import Ledger from '../ledger'
-// import * as cfg from '../configLoader'
+import { ParamBlockResult } from '../types/params'
 
-export default async (args: { indexOrHash: number }, ws: WebSocket) => {
+export default async (args: ParamBlockResult, ws: WebSocket) => {
   if (!args.indexOrHash) {
     throw new NBError(-802, `missing indexOrHash`)
   }

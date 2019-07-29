@@ -19,58 +19,6 @@
     }
   },
   {
-    "method": "txAndSweepPreHook",
-    "params": [
-      {
-        "name": "taskRound",
-        "type": "number"
-      }
-    ],
-    "return": {
-      "type": "void"
-    }
-  },
-  {
-    "method": "txAndSweepPostHook",
-    "params": [
-      {
-        "name": "taskRound",
-        "type": "number"
-      }
-    ],
-    "return": {
-      "type": "void"
-    }
-  },
-  {
-    "method": "genAddress",
-    "params": [
-      {
-        "name": "path",
-        "type": "string"
-      },
-      {
-        "name": "index",
-        "type": "number"
-      },
-      {
-        "name": "coinName",
-        "type": "string"
-      },
-      {
-        "name": "addressType",
-        "type": "number"
-      },
-      {
-        "name": "bizMode",
-        "type": "string"
-      }
-    ],
-    "return": {
-      "type": "string"
-    }
-  },
-  {
     "method": "genAddressByPrivKey",
     "params": [
       {
@@ -91,6 +39,10 @@
       },
       {
         "name": "bizMode",
+        "type": "string"
+      },
+      {
+        "name": "wallet",
         "type": "string"
       }
     ],
@@ -120,6 +72,10 @@
       {
         "name": "bizMode",
         "type": "string"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -132,14 +88,6 @@
       {
         "name": "address",
         "type": "string"
-      },
-      {
-        "name": "coinName",
-        "type": "string"
-      },
-      {
-        "name": "addressType",
-        "type": "number"
       }
     ],
     "return": {
@@ -151,6 +99,10 @@
     "params": [
       {
         "name": "address",
+        "type": "string"
+      },
+      {
+        "name": "wallet",
         "type": "string"
       }
     ],
@@ -175,22 +127,14 @@
       {
         "name": "coinName",
         "type": "string"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
       "type": "string"
-    }
-  },
-  {
-    "method": "getBlock",
-    "params": [
-      {
-        "name": "indexOrHash",
-        "type": "number|string"
-      }
-    ],
-    "return": {
-      "type": "object"
     }
   },
   {
@@ -236,6 +180,10 @@
             }
           ]
         }
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -287,6 +235,14 @@
       {
         "name": "cap",
         "type": "string"
+      },
+      {
+        "name": "order",
+        "type": "object"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -298,16 +254,6 @@
         },
         {
           "name": "meta",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "to",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "value",
           "type": "string",
           "required": false
         },
@@ -334,6 +280,14 @@
       {
         "name": "cap",
         "type": "string"
+      },
+      {
+        "name": "order",
+        "type": "object"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -349,12 +303,103 @@
           "required": false
         },
         {
-          "name": "to",
+          "name": "rollback",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "actionMemo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "method": "scatter",
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "fromAddress",
+        "type": "string"
+      },
+      {
+        "name": "total",
+        "type": "string"
+      },
+      {
+        "name": "targets",
+        "type": "array",
+        "element": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "order",
+        "type": "object"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
+      }
+    ],
+    "return": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "txid",
+          "type": "string"
+        },
+        {
+          "name": "meta",
           "type": "string",
           "required": false
         },
         {
-          "name": "value",
+          "name": "rollback",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "actionMemo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "method": "claim",
+    "params": [
+      {
+        "name": "coinName",
+        "type": "string"
+      },
+      {
+        "name": "fromAddress",
+        "type": "string"
+      },
+      {
+        "name": "order",
+        "type": "object"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
+      }
+    ],
+    "return": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "txid",
+          "type": "string"
+        },
+        {
+          "name": "meta",
           "type": "string",
           "required": false
         },
@@ -392,6 +437,10 @@
         "element": {
           "type": "object"
         }
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -455,6 +504,10 @@
         "element": {
           "type": "object"
         }
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -515,6 +568,10 @@
       {
         "name": "shareAmount",
         "type": "string"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -561,6 +618,10 @@
         "name": "validatorAddress",
         "type": "string",
         "required": false
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -607,6 +668,10 @@
         "name": "rewardAddress",
         "type": "string",
         "required": false
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -691,6 +756,10 @@
       {
         "name": "validatorAddress",
         "type": "string"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -708,6 +777,10 @@
       {
         "name": "validatorAddress",
         "type": "string"
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -720,6 +793,10 @@
     "params": [
       {
         "name": "delegatorAddress",
+        "type": "string"
+      },
+      {
+        "name": "wallet",
         "type": "string"
       }
     ],
@@ -737,6 +814,10 @@
       },
       {
         "name": "validatorAddress",
+        "type": "string"
+      },
+      {
+        "name": "wallet",
         "type": "string"
       }
     ],
@@ -790,6 +871,10 @@
     "params": [
       {
         "name": "address",
+        "type": "string"
+      },
+      {
+        "name": "wallet",
         "type": "string"
       }
     ],
@@ -900,6 +985,10 @@
         "name": "bn",
         "type": "number",
         "required": false
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -908,6 +997,11 @@
         {
           "name": "found",
           "type": "boolean"
+        },
+        {
+          "name": "expired",
+          "type": "boolean",
+          "required": false
         },
         {
           "name": "block",
@@ -963,6 +1057,10 @@
         "name": "bn",
         "type": "number",
         "required": false
+      },
+      {
+        "name": "wallet",
+        "type": "string"
       }
     ],
     "return": {
@@ -1065,6 +1163,163 @@
     }
   },
   {
+    "method": "fillTransaction",
+    "params": [
+      {
+        "name": "txn",
+        "type": "string|object"
+      },
+      {
+        "name": "bn",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "timestamp",
+        "type": "number",
+        "required": false
+      }
+    ],
+    "return": {
+      "type": "object",
+      "fields": [ 
+        {
+          "name": "txid",
+          "type": "string"
+        },
+        {
+          "name": "meta",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "method": "filterIncomingTransactions",
+    "params": [
+      {
+        "name": "txns",
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": [
+            {
+              "name": "txid",
+              "type": "string"
+            },
+            {
+              "name": "meta",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      {
+        "name": "bn",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "timestamp",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "wallet",
+        "type": "string"
+      },
+      {
+        "name": "hotAddress",
+        "type": "string"
+      },
+      {
+        "name": "coldAddress",
+        "type": "string"
+      }
+    ],
+    "return": {
+      "type": "array",
+      "element": {
+        "type": "object",
+        "fields": [
+          {
+            "name": "txid",
+            "type": "string"
+          },
+          {
+            "name": "meta",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "bn",
+            "type": "number"
+          },
+          {
+            "name": "coreType",
+            "type": "string"
+          },
+          {
+            "name": "coinName",
+            "type": "string"
+          },
+          {
+            "name": "fromAddress",
+            "type": "string"
+          },
+          {
+            "name": "toAddress",
+            "type": "string"
+          },
+          {
+            "name": "value",
+            "type": "string"
+          },
+          {
+            "name": "n",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "action",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "actionMemo",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "actionResults",
+            "type": "array",
+            "element": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "isUnexpected",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "isSpecial",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "isInternal",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      }
+    }
+  },
+  {
     "method": "filterTransactions",
     "params": [
       {
@@ -1087,6 +1342,11 @@
       },
       {
         "name": "bn",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "timestamp",
         "type": "number",
         "required": false
       },
