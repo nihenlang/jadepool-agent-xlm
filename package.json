@@ -1,6 +1,6 @@
 {
   "name": "jadepool-agent-xlm",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "scripts": {
     "dev": "nodemon",
     "start": "ts-node src/index.ts",
