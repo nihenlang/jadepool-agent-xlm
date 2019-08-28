@@ -1,6 +1,6 @@
 {
   "name": "jadepool-agent-xlm",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "scripts": {
     "dev": "nodemon",
     "start": "ts-node src/index.ts",
@@ -8,7 +8,7 @@
     "serve": "node dist/index.js"
   },
   "dependencies": {
-    "@jadepool/lib-core": "~0.14.8",
+    "@jadepool/lib-core": "~0.14.9",
     "@jadepool/logger": "^1.0.1",
     "@types/agenda": "^2.0.4",
     "@types/stellar-sdk": "^0.10.6",
