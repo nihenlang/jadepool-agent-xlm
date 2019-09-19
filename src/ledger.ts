@@ -501,7 +501,7 @@ export default class Ledger {
 
     let results = await this.sdk.transactions().forLedger(index).call()
     let txns: TxResult[] = []
-    while (results && results.records.length > 0) {
+    while (results && results.records && results.records.length > 0) {
       txns = txns.concat(results.records.map(record => {
         return {
           txid: record.hash,
