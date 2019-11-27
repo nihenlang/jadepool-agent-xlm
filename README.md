@@ -72,22 +72,28 @@ let sig = {
   - address 被查地址
 - **getBlockNumber** 获取最新区块号，请求参数: 无
 - **getBalance** 获取地址/钱包余额，请求参数：
+  - wallet: string
   - address 被查地址(若UTXO类可返回钱包余额)
   - coinName 币种别名
 - **getBlockResult** 获取Block下的全部txns，请求参数：
   - indexOrHash 区块号(or区块哈希，通常不用)
-- **getTransactionHistory** 获取地址内的全部txns，请求参数：
-  - address 被查地址
-- **filterTransactions** 根据交易返回筛选结果，请求参数：
+- **filterIncomingTransactions** 根据交易返回筛选结果，请求参数：
   - txns 由getBlockResult/getTransactionHistory返回的原始数据
   - bn (可选)这些交易所在的区块号
+  - wallet: string
+  - hotAddress: string
+  - coldAddress: string
 - **withdraw** 发起提现请求，请求参数：
+  - wallet: string
   - coinName 币种别名
   - outputs: { id, to, value }[] 请求信息
 - **sweepToCold** 发起热转冷请求，请求参数：
+  - wallet: string
   - coinName 币种别名
   - cap 金额
+  - order
 - **getOrderState** 查询并修改订单状态，请求参数：
+  - wallet: string
   - info { txid, meta, coinName, block }, 订单信息
   - bn 目前的最新区块号，不用再次获取
 - **getTransactionState** 查询指定txid的交易信息，请求参数：
@@ -101,7 +107,4 @@ let sig = {
   - fromAddress 来源地址
   - cap 金额
   - order 订单详情
-
-### 可选实现的Hook方法（在定时任务中会调用）
-
-- **initializePostHook** 系统初始化完成后被调用
+ 
